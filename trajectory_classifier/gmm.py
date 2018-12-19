@@ -81,12 +81,12 @@ class GaussianMixture(torch.nn.Module):
 			if iprint:
 				print("epoch = {}, log_likelihood = {}".format(i, self.score))
 
-	def append_fit(self, X, ex_size):
+	def append_fit(self, X, ex_size, iprint=False):
 		mu_extend = torch.nn.Parameter(torch.rand(self.n_components, ex_size), requires_grad=False)
 		var_extend = torch.nn.Parameter(torch.ones(self.n_components, ex_size), requires_grad=False)
 		self.mu = torch.nn.Parameter(torch.cat((self.mu, mu_extend), 1), requires_grad=False)
 		self.var = torch.nn.Parameter(torch.cat((self.var, var_extend), 1), requires_grad=False)
-		self.fit(X,True)
+		self.fit(X,iprint)
 
 	def predict(self, X, prob=True):
 		Xt = torch.tensor(X,dtype=torch.float32)

@@ -8,6 +8,7 @@ import torchvision
 from trajectory_classifier.gmm import GaussianMixture
 import matplotlib.pyplot as plt
 import time
+from scipy import spatial
 from util.util import mnist_noise, correct_prob
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -168,15 +169,15 @@ if True:
 	optimizer = torch.optim.Adam(cnn.parameters(), lr=lr, weight_decay=L2)
 
 	tensor_noisy_dataset = Data.TensorDataset(x_train_tensor,y_train_noisy_tensor)
-	train_noisy_loader= Data.DataLoader(dataset=tensor_noisy_dataset, batch_size=batch_size, shuffle=True)
+	train_noisy_loader= Data.DataLoader(dataset=tensor_noisy_dataset, batch_size=batch_size, shuffle=False)
 
 	corr_prob = []
-
 	"""
 	burn-in epoch
 	"""
 
 	for epoch in range(2):
+		print('epoch = {}'.format(epoch+1))
 		for step, (b_x, b_y) in enumerate(train_noisy_loader):
 			b_x, b_y = b_x.to(device), b_y.to(device)
 			output = cnn(b_x)
@@ -194,16 +195,63 @@ if True:
 
 	corr_prob = np.array(corr_prob).T
 	clu.fit(corr_prob,iprint=True)
-	cluster = clu.predict(corr_prob)
+	cluster = clu.predict(corr_prob,prob=False)
 
-	eval_grads = []
-	valid_output = cnn(x_valid_tensor.to(device))
-	valid_loss = loss_func(valid_output, y_valid_tensor.to(device))
-	optimizer.zero_grad()
-	valid_loss.backward()
-	for w in cnn.parameters():
-		if w.requires_grad:
-			eval_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
-	eval_grads = np.array(eval_grads)
+	for epoch in range(8):
+		print('epoch = {}'.format(epoch+3))
+		eval_grads = []
+		valid_output = cnn(x_valid_tensor.to(device))
+		valid_loss = loss_func(valid_output, y_valid_tensor.to(device))
+		optimizer.zero_grad()
+		valid_loss.backward()
+		for w in cnn.parameters():
+			if w.requires_grad:
+				eval_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
+		eval_grads = np.array(eval_grads)
+
+		for com in range(6):
+			subset_grads = []
+			x_cluster = x_train[:,:,cluster==com]
+			y_cluster = y_train_noisy_tensor.data.cpu().numpy()[cluster==com]
+			
+			size = y_cluster.shape[0]
+			sample_size = min(int(size/4), 2000)
+			sample_idx = np.random.choice(range(size), sample_size, replace=False).tolist()
+			x_subset = x_cluster[:,:,sample_idx]
+			y_subset = y_cluster[sample_idx]
 
 
+			x_train_subset_tensor = torchvision.transforms.ToTensor()(x_subset).unsqueeze(1)
+			y_train_subset_tensor = torch.from_numpy(y_subset.astype(np.long))
+			subset_output = cnn(x_train_subset_tensor.to(device))
+			subset_loss = loss_func(subset_output, y_train_subset_tensor.to(device))
+			optimizer.zero_grad()
+			subset_loss.backward()
+			for w in cnn.parameters():
+				if w.requires_grad:
+					subset_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
+			subset_grads = np.array(subset_grads)
+			sim = 1 - spatial.distance.cosine(eval_grads, subset_grads)
+
+			### TODO: How to use sim?
+
+		for step, (b_x, b_y) in enumerate(train_noisy_loader):
+			b_x, b_y = b_x.to(device), b_y.to(device)
+			output = cnn(b_x)
+			loss = loss_func(output, b_y)
+			optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
+
+		with torch.no_grad():
+			train_output = []
+			for step, (b_x, b_y) in enumerate(train_noisy_loader):
+				b_x = b_x.to(device)
+				train_output.extend(cnn(b_x.to(device)).data.cpu().numpy().tolist())
+			tmp = np.array(correct_prob(train_output,y_train)).reshape(-1,1)
+			print(tmp.shape)
+			corr_prob = np.append(corr_prob,tmp,1)
+			print(corr_prob.shape)
+
+		clu.append_fit(corr_prob,1,iprint=True)
+		cluster = clu.predict(corr_prob,prob=False)
