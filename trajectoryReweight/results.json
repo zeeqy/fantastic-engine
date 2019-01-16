@@ -1,0 +1,19 @@
+{"data":"MNISTNoisy","validation_size":1000, "num_iter":80, "learning_rate":1e-3, "early_stopping":5, "num_clusters":10, "burn_in":5, "batch_size":64, "reweight_step":3, 
+"results":	[
+				{"noise_level": 0.1, "std_test":0.9859, "rewgt_test":0.9922},
+				{"noise_level": 0.2, "std_test":0.9891, "rewgt_test":0.9899},
+				{"noise_level": 0.4, "std_test":0.9754, "rewgt_test":0.9865},
+				{"noise_level": 0.6, "std_test":0.9727, "rewgt_test":0.9815},
+				{"noise_level": 0.8, "std_test":0.9556, "rewgt_test":},
+		  	]
+},
+{"data":"MNISTImbalance","validation_size":500, "num_iter":80, "learning_rate":1e-3, "early_stopping":5, "num_clusters":5, "burn_in":5, "batch_size":64, "reweight_step":3, 
+"results":	[
+				{"imbalance_level":0.1, "std_test":, "rewgt_test":},
+				{"imbalance_level":0.05, "std_test":, "rewgt_test":},
+				{"imbalance_level":0.01, "std_test":, "rewgt_test":},
+				{"imbalance_level":0.005, "std_test":, "rewgt_test":},
+			]
+
+
+}
