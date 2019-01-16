@@ -1,2 +1,2 @@
 # fantastic-engine
-COMSCI 689 Project Code
+Trajectory reweighting neaul network training project
