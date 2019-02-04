@@ -38,7 +38,7 @@ class TrajectoryReweightNN:
 				burnin=2, num_cluster=6, 
 				batch_size=100, num_iter=10, 
 				learning_rate=5e-5, early_stopping=5, 
-				device='cpu', traj_step = 3, iprint=0):
+				device='cpu', traj_step = 3,iprint=0):
 		
 		self.torchnn = torchnn
 		self.burnin = burnin
@@ -56,7 +56,7 @@ class TrajectoryReweightNN:
 		prob = []
 		for idx in range(len(output)):
 			output_prob = self.softmax(output[idx])
-			prob.append(output_prob[y[idx]])
+			prob.append(output_prob[y[idx]] + np.var(output_prob) + np.var(np.concatenate([output_prob[:y[idx]], output_prob[y[idx]+1:]])))
 		return prob
 
 	def softmax(self, x):
@@ -66,7 +66,7 @@ class TrajectoryReweightNN:
 		if self.iprint >= level:
 			print(msg)
 
-	def fit(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, x_test_tensor, y_test_tensor):
+	def fit(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, x_test_tensor, y_test_tensor, special_index=None):
 
 		self.weight_tensor = torch.from_numpy(np.ones_like(y_train_tensor,dtype=np.float32))
 		train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor, self.weight_tensor)
@@ -76,7 +76,7 @@ class TrajectoryReweightNN:
 		L2 = 0.0005
 		patience = 0
 		best_epoch = 0
-		best_score = 0
+		best_score = np.inf
 		hiatus = 0
 		best_params = {}
 
@@ -122,7 +122,7 @@ class TrajectoryReweightNN:
 		"""
 		self.log('Trajectory clustering for burn-in epoch...',1)
 		self.cluster_output = self.cluster()
-		train_loader = self.reweight(x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor)
+		train_loader = self.reweight(x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, special_index)
 		self.log('Trajectory clustering for burn-in epoch complete.\n' + '-'*60, 1)
 		"""
 		training with reweighting starts
@@ -133,7 +133,7 @@ class TrajectoryReweightNN:
 			if hiatus == self.traj_step:
 				hiatus = 0
 				self.cluster_output = self.cluster()
-				train_loader = self.reweight(x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor)
+				train_loader = self.reweight(x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, special_index)
 			
 			train_losses = []
 			self.torchnn.train()
@@ -162,9 +162,9 @@ class TrajectoryReweightNN:
 				valid_accuracy = 100 * correct / len(valid_loader.dataset)
 
 			# early stopping
-			if valid_accuracy >= best_score:
+			if valid_loss <= best_score:
 				patience = 0
-				best_score = valid_accuracy
+				best_score = valid_loss
 				best_epoch = epoch
 				torch.save(self.torchnn.state_dict(), 'checkpoint.pt')
 			else:
@@ -179,9 +179,9 @@ class TrajectoryReweightNN:
 		training finsihed
 		"""
 		self.torchnn.load_state_dict(torch.load('checkpoint.pt'))
-		self.log('Trajectory based training complete, best validation accuarcy = {} at epoch = {}.'.format(best_score, best_epoch), 1)
+		self.log('Trajectory based training complete, best validation loss = {} at epoch = {}.'.format(best_score, best_epoch), 1)
 
-	def reweight(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor):
+	def reweight(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, special_index):
 		eval_grads = []
 		validNet = deepcopy(self.torchnn)
 		valid_output = validNet(x_valid_tensor.to(self.device))
@@ -196,9 +196,11 @@ class TrajectoryReweightNN:
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
+			if special_index != []:
+				num_spe = self.special_ratio(cidx,special_index)
 			x_cluster = x_train_tensor[cidx]
 			y_cluster = y_train_tensor[cidx]
-			size = y_cluster.shape[0]
+			size = len(cidx)
 			if size == 0:
 				continue
 			sample_size = min(int(size), 2000)
@@ -216,8 +218,12 @@ class TrajectoryReweightNN:
 			subset_grads = np.array(subset_grads)
 			sim = 1 - spatial.distance.cosine(eval_grads, subset_grads)
 
-			self.weight_tensor[cidx] = 0.5 * (sim + 1)
-			self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim, 'weight':self.weight_tensor[cidx][0].data.numpy().tolist()}),2)
+			self.weight_tensor[cidx] += 0.05 * sim
+			self.weight_tensor[cidx] = self.weight_tensor[cidx].clamp(0.001)
+			if special_index != []:
+				self.log('| - ' + str({cid:cid, 'size': size, 'sim': '{:.4f}'.format(sim), 'num_spe': num_spe, 'spe_ratio':'{:.4f}'.format(num_spe/size)}),2)
+			else:
+				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim}),2)
 
 		train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor, self.weight_tensor)
 		train_loader = Data.DataLoader(dataset=train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -247,3 +253,7 @@ class TrajectoryReweightNN:
 		loss /= len(data_loader.dataset)
 
 		return loss, correct
+
+	def special_ratio(self, cidx, noise_index):
+		spe = set(cidx) - (set(cidx) - set(noise_index))
+		return len(spe)

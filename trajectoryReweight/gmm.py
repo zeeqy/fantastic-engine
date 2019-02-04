@@ -51,6 +51,10 @@ class GaussianMixture(torch.nn.Module):
 
 		Xt = torch.tensor(X,dtype=torch.float32)
 
+		# re-initial by random data points
+		rand_idx = np.random.choice(Xt.size()[0]-1, self.n_components, replace=False).tolist()
+		self.mu = torch.nn.Parameter(Xt[rand_idx], requires_grad=False)
+
 		while (i < self.n_iter) and (diff >= self.tol):
 
 			pre_score = self.score

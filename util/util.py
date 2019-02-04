@@ -10,4 +10,4 @@ def mnist_noise(y_train, ratio=0.5):
 	for idx in noise_idx:
 		noise_label = [lab for lab in label if lab != y_train[idx]]
 		label_copy[idx] = np.random.choice(noise_label, size=1)
-	return label_copy
+	return label_copy, noise_idx

@@ -31,7 +31,7 @@ class StandardTrainingNN:
 		patience = 0
 		best_params = {}
 		best_epoch = 0
-		best_score = 0
+		best_score = np.inf
 
 		optimizer = torch.optim.Adam(self.torchnn.parameters(), lr=self.learning_rate, weight_decay=L2)
 		train_loader = Data.DataLoader(dataset=train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -63,9 +63,9 @@ class StandardTrainingNN:
 			valid_accuracy = 100 * correct / len(valid_loader.dataset)
 
 			#early stopping
-			if valid_accuracy >= best_score:
+			if valid_loss <= best_score:
 				patience = 0
-				best_score = valid_accuracy
+				best_score = valid_loss
 				best_epoch = epoch
 				torch.save(self.torchnn.state_dict(), 'checkpoint.pt')
 			else:
@@ -79,7 +79,7 @@ class StandardTrainingNN:
 		training finsihed
 		"""
 		self.torchnn.load_state_dict(torch.load('checkpoint.pt'))
-		self.log('Standard training complete, best validation valid_accuracy = {} at epoch = {}.'.format(best_score, best_epoch), 1)
+		self.log('Standard training complete, best validation loss = {} at epoch = {}.'.format(best_score, best_epoch), 1)
 
 	def predict(self, x_test_tensor):
 		test_output = self.torchnn(x_test_tensor.to(self.device))
