@@ -58,7 +58,6 @@ class API:
 		for idx in range(len(output)):
 			output_prob = self._softmax(output[idx])
 			prob.append(output_prob[y[idx]]) # could be more like + np.var(output_prob) + np.var(np.concatenate([output_prob[:y[idx]], output_prob[y[idx]+1:]])))
-			#prob.append(output_prob[y[idx]] + np.var(output_prob) + np.var(np.concatenate([output_prob[:y[idx]], output_prob[y[idx]+1:]])))
 		return prob
 
 	def _softmax(self, x):
