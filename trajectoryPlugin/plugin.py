@@ -35,6 +35,18 @@ class WeightedCrossEntropyLoss(nn.Module):
 
 
 class API:
+	"""
+	This API will take care of recording trajectory, clustering trajectory and reweigting dataset
+	Args:
+		batch_size: mini batch size when processing, avioding memory error;
+		x_train_tensor: training data in tensor;
+		y_train_tensor: training label in tensor;
+		x_valid_tensor, y_valid_tensor: validation dataset;
+		num_cluster: number of clunters
+
+		note: this api will handle dataset during training, see example.
+	"""
+	
 	def __init__(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, num_cluster=6, batch_size=100, device='cpu', iprint=0):
 		self.batch_size = batch_size
 		self.weight_tensor = torch.from_numpy(np.ones_like(y_train_tensor,dtype=np.float32))
