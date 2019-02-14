@@ -91,7 +91,7 @@ class TrajectoryReweightNN:
 		"""
 		self.log('Train {} burn-in epoch...'.format(self.burnin), 1)
 		
-		self.corr_prob = []
+		self.traject_matrix = []
 		epoch = 1
 		scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=0.95)
 		while epoch <= self.burnin:
@@ -110,11 +110,11 @@ class TrajectoryReweightNN:
 				for step, (data, target, weight) in enumerate(reweight_loader):
 					data = data.to(self.device)
 					train_output.extend(self.torchnn(data).data.cpu().numpy().tolist())
-				self.corr_prob.append(self.correct_prob(train_output, y_train_tensor.cpu().numpy()))
+				self.traject_matrix.append(self.correct_prob(train_output, y_train_tensor.cpu().numpy()))
 			test_loss, correct = self.evaluate(test_loader)
 			self.log('epoch = {} | test loss = {:.4f} | test accuarcy = {}% [{}/{}]'.format(epoch, test_loss, 100*correct/len(test_loader.dataset), correct, len(test_loader.dataset)), 2)
 			epoch += 1
-		self.corr_prob = np.array(self.corr_prob).T
+		self.traject_matrix = np.array(self.traject_matrix).T
 		self.log('Train {} burn-in epoch complete.\n'.format(self.burnin) + '-'*60, 1)
 
 		"""
@@ -156,7 +156,7 @@ class TrajectoryReweightNN:
 					output = self.torchnn(data)
 					train_output.extend(output.data.cpu().numpy().tolist())
 				new_trajectory = np.array(self.correct_prob(train_output,y_train_tensor.cpu().numpy())).reshape(-1,1)
-				self.corr_prob = np.append(self.corr_prob,new_trajectory,1)
+				self.traject_matrix = np.append(self.traject_matrix,new_trajectory,1)
 
 				valid_loss, correct = self.evaluate(valid_loader)
 				valid_accuracy = 100 * correct / len(valid_loader.dataset)
@@ -182,7 +182,7 @@ class TrajectoryReweightNN:
 		self.log('Trajectory based training complete, best validation loss = {} at epoch = {}.'.format(best_score, best_epoch), 1)
 
 	def reweight(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, special_index):
-		eval_grads = []
+		valid_grad = []
 		validNet = deepcopy(self.torchnn)
 		valid_output = validNet(x_valid_tensor.to(self.device))
 		valid_loss = self.loss_func(valid_output, y_valid_tensor.to(self.device), None)
@@ -190,14 +190,12 @@ class TrajectoryReweightNN:
 		valid_loss.backward()
 		for w in validNet.parameters():
 			if w.requires_grad:
-				eval_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
-		eval_grads = np.array(eval_grads)
+				valid_grad.extend(list(w.grad.cpu().detach().numpy().flatten()))
+		valid_grad = np.array(valid_grad)
 		
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
-			if special_index != []:
-				num_spe = self.special_ratio(cidx,special_index)
 			x_cluster = x_train_tensor[cidx]
 			y_cluster = y_train_tensor[cidx]
 			size = len(cidx)
@@ -216,12 +214,13 @@ class TrajectoryReweightNN:
 				if w.requires_grad:
 					subset_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
 			subset_grads = np.array(subset_grads)
-			sim = 1 - spatial.distance.cosine(eval_grads, subset_grads)
+			sim = 1 - spatial.distance.cosine(valid_grad, subset_grads)
 
 			self.weight_tensor[cidx] += 0.05 * sim
 			self.weight_tensor[cidx] = self.weight_tensor[cidx].clamp(0.001)
 			if special_index != []:
-				self.log('| - ' + str({cid:cid, 'size': size, 'sim': '{:.4f}'.format(sim), 'num_spe': num_spe, 'spe_ratio':'{:.4f}'.format(num_spe/size)}),2)
+				num_special = self.special_ratio(cidx,special_index)
+				self.log('| - ' + str({cid:cid, 'size': size, 'sim': '{:.4f}'.format(sim), 'num_special': num_special, 'spe_ratio':'{:.4f}'.format(num_special/size)}),2)
 			else:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim}),2)
 
@@ -230,9 +229,9 @@ class TrajectoryReweightNN:
 		return train_loader
 
 	def cluster(self):
-		self.gmmCluster = GaussianMixture(self.num_cluster,self.corr_prob.shape[1], iprint=0)
-		self.gmmCluster.fit(self.corr_prob)
-		cluster_output = self.gmmCluster.predict(self.corr_prob, prob=False)
+		self.gmmCluster = GaussianMixture(self.num_cluster,self.traject_matrix.shape[1], iprint=0)
+		self.gmmCluster.fit(self.traject_matrix)
+		cluster_output = self.gmmCluster.predict(self.traject_matrix, prob=False)
 		return cluster_output
 
 	def predict(self, x_test_tensor):
