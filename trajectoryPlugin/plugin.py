@@ -84,11 +84,11 @@ class API:
 			prob_output += self._correctProb(output, target.data.cpu().numpy())
 		self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
 
-	def _validGrad(self, validNet, optimizer):
+	def _validGrad(self, validNet):
 		valid_grad = []
 		valid_output = validNet(self.valid_dataset.tensors[0].to(self.device))
 		valid_loss = self.loss_func(valid_output, self.valid_dataset.tensors[1].to(self.device), None)
-		optimizer.zero_grad()
+		validNet.zero_grad()
 		valid_loss.backward()
 		for w in validNet.parameters():
 			if w.requires_grad:
@@ -96,8 +96,9 @@ class API:
 		return np.array(valid_grad)
 
 
-	def reweightData(self, validNet, optimizer, num_sample, special_index=[]):
-		valid_grad = self._validGrad(validNet, optimizer)
+	def reweightData(self, torchnn, num_sample, special_index=[]):
+		validNet = deepcopy(torchnn)
+		valid_grad = self._validGrad(validNet)
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
@@ -113,7 +114,7 @@ class API:
 
 			subset_output = validNet(x_subset.to(self.device))
 			subset_loss = self.loss_func(subset_output, y_subset.to(self.device), None)
-			optimizer.zero_grad()
+			validNet.zero_grad()
 			subset_loss.backward()
 			for w in validNet.parameters():
 				if w.requires_grad:
