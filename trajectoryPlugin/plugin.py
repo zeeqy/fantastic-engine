@@ -86,6 +86,7 @@ class API:
 
 	def _validGrad(self, validNet):
 		valid_grad = []
+		validNet.eval()
 		valid_output = validNet(self.valid_dataset.tensors[0].to(self.device))
 		valid_loss = self.loss_func(valid_output, self.valid_dataset.tensors[1].to(self.device), None)
 		validNet.zero_grad()
@@ -96,8 +97,7 @@ class API:
 		return np.array(valid_grad)
 
 
-	def reweightData(self, torchnn, num_sample, special_index=[]):
-		validNet = deepcopy(torchnn)
+	def reweightData(self, validNet, num_sample, special_index=[]):
 		valid_grad = self._validGrad(validNet)
 		for cid in range(self.num_cluster):
 			subset_grads = []
@@ -111,7 +111,8 @@ class API:
 			sample_idx = np.random.choice(range(size), sample_size, replace=False).tolist()
 			x_subset = x_cluster[sample_idx]
 			y_subset = y_cluster[sample_idx]
-
+			
+			validNet.eval() # eval mode, important!
 			subset_output = validNet(x_subset.to(self.device))
 			subset_loss = self.loss_func(subset_output, y_subset.to(self.device), None)
 			validNet.zero_grad()
