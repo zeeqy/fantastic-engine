@@ -77,7 +77,7 @@ class API:
 		if self.iprint >= level:
 			print(msg)
 		if self.iprint == 99:
-			pass # dump json
+			pass # if we need to dump json to file in the future
 
 
 	def _correctProb(self, output, y):
