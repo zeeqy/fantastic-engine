@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.utils.data as Data
 import torchvision
 import numpy as np
-from copy import deepcopy
 from trajectoryPlugin.gmm import GaussianMixture
 from scipy import spatial
 
@@ -47,23 +46,37 @@ class API:
 		note: this api will handle dataset during training, see example.
 	"""
 	
-	def __init__(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, num_cluster=6, batch_size=100, device='cpu', iprint=0):
-		self.batch_size = batch_size
-		self.weight_tensor = torch.from_numpy(np.ones_like(y_train_tensor,dtype=np.float32))
-		self.train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor, self.weight_tensor)
-		self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
-		self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
-		self.valid_dataset = Data.TensorDataset(x_valid_tensor, y_valid_tensor)
-
-		self.traject_matrix = np.empty((y_train_tensor.size()[0],0))
+	def __init__(self, num_cluster=6, device='cpu', iprint=0):
 		self.num_cluster = num_cluster
 		self.loss_func = WeightedCrossEntropyLoss()
 		self.device = device
 		self.iprint = iprint #output level
 
+	def dataTensor(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, batch_size=100):
+		self.batch_size = batch_size
+		self.weight_tensor = torch.from_numpy(np.ones_like(y_train_tensor,dtype=np.float32))
+		self.weight_tensor.requires_grad = False
+		self.train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor, self.weight_tensor)
+		self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
+		self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
+		self.valid_dataset = Data.TensorDataset(x_valid_tensor, y_valid_tensor)
+		self.traject_matrix = np.empty((y_train_tensor.size()[0],0))
+
+	def dataLoader(self, train_loader, valid_loader):
+		self.batch_size = train_loader.batch_size
+		self.train_dataset = train_loader.dataset
+		self.valid_dataset = valid_loader.dataset
+		self.weight_tensor = torch.from_numpy(np.ones_like(train_loader.dataset.tensors[1],dtype=np.float32))
+		self.weight_tensor.requires_grad = False
+		self.reweight_loader = Data.DataLoader(dataset=train_loader.dataset, batch_size=self.batch_size, shuffle=False)
+		self.traject_matrix = np.empty((train_loader.dataset.tensors[1].size()[0],0))
+
 	def log(self, msg, level):
 		if self.iprint >= level:
 			print(msg)
+		if self.iprint == 99:
+			pass # dump json
+
 
 	def _correctProb(self, output, y):
 		prob = []
@@ -76,13 +89,13 @@ class API:
 		return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 	def createTrajectory(self, torchnn):
-		validNet = deepcopy(torchnn)
-		prob_output = []
-		for step, (data, target, weight) in enumerate(self.reweight_loader):
-			data = data.to(self.device)
-			output = validNet(data).data.cpu().numpy().tolist()
-			prob_output += self._correctProb(output, target.data.cpu().numpy())
-		self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
+		with torch.no_grad():
+			prob_output = []
+			for step, (data, target, weight) in enumerate(self.reweight_loader):
+				data = data.to(self.device)
+				output = torchnn(data).data.cpu().numpy().tolist()
+				prob_output += self._correctProb(output, target.data.cpu().numpy())
+			self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
 
 	def _validGrad(self, validNet):
 		valid_grad = []
