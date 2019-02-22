@@ -84,9 +84,8 @@ class API:
 			prob_output += self._correctProb(output, target.data.cpu().numpy())
 		self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
 
-	def _validGrad(self, torchnn, optimizer):
+	def _validGrad(self, validNet, optimizer):
 		valid_grad = []
-		validNet = deepcopy(torchnn)
 		valid_output = validNet(self.valid_dataset.tensors[0].to(self.device))
 		valid_loss = self.loss_func(valid_output, self.valid_dataset.tensors[1].to(self.device), None)
 		optimizer.zero_grad()
@@ -97,9 +96,8 @@ class API:
 		return np.array(valid_grad)
 
 
-	def reweightData(self, torchnn, optimizer, num_sample, special_index=[]):
-		valid_grad = self._validGrad(torchnn, optimizer)
-		validNet = deepcopy(torchnn)
+	def reweightData(self, validNet, optimizer, num_sample, special_index=[]):
+		valid_grad = self._validGrad(validNet, optimizer)
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
