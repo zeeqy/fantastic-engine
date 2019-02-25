@@ -63,15 +63,21 @@ class API:
 		self.traject_matrix = np.empty((y_train_tensor.size()[0],0))
 
 	def dataLoader(self, train_loader, valid_loader):
-		self.weight_tensor = torch.from_numpy(np.ones_like(train_loader.dataset.tensors[1],dtype=np.float32))
+		if 'tensors' in train_loader.dataset.__dict__.keys():
+			self.train_dataset = train_loader.dataset
+		elif 'train_data' in train_loader.dataset.__dict__.keys() and 'train_labels' in train_loader.dataset.__dict__.keys():
+			x_train_tensor, y_train_tensor = torch.tensor(train_loader.dataset.train_data), torch.tensor(train_loader.dataset.train_labels)
+			self.train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor)
+		else:
+			self.log('error, object not found. please check your train_loader.',0)
+		self.weight_tensor = torch.from_numpy(np.ones_like(self.train_dataset.tensors[1],dtype=np.float32))
 		self.weight_tensor.requires_grad = False
 		self.batch_size = train_loader.batch_size
-		self.train_dataset = train_loader.dataset
 		self.train_dataset.tensors += (self.weight_tensor,)
-		self.valid_dataset = valid_loader.dataset
 		self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
 		self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
-		self.traject_matrix = np.empty((train_loader.dataset.tensors[1].size()[0],0))
+		self.traject_matrix = np.empty((self.train_dataset.tensors[1].size()[0],0))
+		self.valid_dataset = valid_loader.dataset
 
 	def log(self, msg, level):
 		if self.iprint >= level:
