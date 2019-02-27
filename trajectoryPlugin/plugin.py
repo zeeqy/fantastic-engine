@@ -4,6 +4,7 @@ import torch.utils.data as Data
 import torchvision
 import numpy as np
 from trajectoryPlugin.gmm import GaussianMixture
+from trajectoryPlugin.collate import default_collate as core_collate
 from scipy import spatial
 
 
@@ -32,6 +33,15 @@ class WeightedCrossEntropyLoss(nn.Module):
 			loss = loss * weights
 		return loss
 
+class ConcatDataset(torch.utils.data.Dataset):
+	def __init__(self, *datasets):
+		self.datasets = datasets
+
+	def __getitem__(self, i):
+		return tuple(d[i] for d in self.datasets)
+
+	def __len__(self):
+		return min(len(d) for d in self.datasets)
 
 class API:
 	"""
@@ -52,39 +62,43 @@ class API:
 		self.device = device
 		self.iprint = iprint #output level
 
-	def dataTensor(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, batch_size=100):
-		self.batch_size = batch_size
-		self.weight_tensor = torch.from_numpy(np.ones_like(y_train_tensor,dtype=np.float32))
-		self.weight_tensor.requires_grad = False
-		self.train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor, self.weight_tensor)
-		self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
-		self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
-		self.valid_dataset = Data.TensorDataset(x_valid_tensor, y_valid_tensor)
-		self.traject_matrix = np.empty((y_train_tensor.size()[0],0))
+	def _collateFn(self, batch):
+		transposed = zip(*batch)
+		res = []
+		for samples in transposed:
+			res += core_collate(samples)
+		return res
 
-	def dataLoader(self, train_loader, valid_loader):
-		if 'tensors' in train_loader.dataset.__dict__.keys():
-			self.train_dataset = train_loader.dataset
-		elif 'train_data' in train_loader.dataset.__dict__.keys() and 'train_labels' in train_loader.dataset.__dict__.keys():
-			x_train_tensor, y_train_tensor = torch.tensor(train_loader.dataset.train_data), torch.tensor(train_loader.dataset.train_labels)
-			self.train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor)
-		else:
-			self.log('error, object not found. please check your train_loader.',0)
-		self.weight_tensor = torch.from_numpy(np.ones_like(self.train_dataset.tensors[1],dtype=np.float32))
-		self.weight_tensor.requires_grad = False
-		self.batch_size = train_loader.batch_size
-		self.train_dataset.tensors += (self.weight_tensor,)
-		self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
-		self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
-		self.traject_matrix = np.empty((self.train_dataset.tensors[1].size()[0],0))
-		self.valid_dataset = valid_loader.dataset
+	# def dataTensor(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, batch_size=100):
+	# 	self.batch_size = batch_size
+	# 	self.weight_tensor = torch.from_numpy(np.ones_like(y_train_tensor,dtype=np.float32))
+	# 	self.weight_tensor.requires_grad = False
+	# 	self.train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor, self.weight_tensor)
+	# 	self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
+	# 	self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
+	# 	self.valid_dataset = Data.TensorDataset(x_valid_tensor, y_valid_tensor)
+	# 	self.traject_matrix = np.empty((y_train_tensor.size()[0],0))
+
+	def dataLoader(self, trainset, validset, batch_size=100):
+		self.batch_size = batch_size
+		self.train_dataset = trainset
+		self.valid_dataset = validset
+		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
+		self.weightset = Data.TensorDataset(self.weight_tensor)
+		self.train_loader = torch.utils.data.DataLoader(
+			ConcatDataset(
+				self.train_dataset,
+				self.weightset
+			),
+			batch_size=self.batch_size, shuffle=True,collate_fn=self._collateFn)
+		self.reweight_loader = torch.utils.data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
+		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
 
 	def log(self, msg, level):
 		if self.iprint >= level:
 			print(msg)
 		if self.iprint == 99:
 			pass # if we need to dump json to file in the future
-
 
 	def _correctProb(self, output, y):
 		prob = []
@@ -99,7 +113,7 @@ class API:
 	def createTrajectory(self, torchnn):
 		with torch.no_grad():
 			prob_output = []
-			for step, (data, target, weight) in enumerate(self.reweight_loader):
+			for step, (data, target) in enumerate(self.reweight_loader):
 				data = data.to(self.device)
 				output = torchnn(data).data.cpu().numpy().tolist()
 				prob_output += self._correctProb(output, target.data.cpu().numpy())
@@ -123,8 +137,7 @@ class API:
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
-			x_cluster = self.train_dataset.tensors[0][cidx] #x_train_tensor
-			y_cluster = self.train_dataset.tensors[1][cidx] #y_train_tensor
+			x_cluster, y_cluster= self.train_dataset.__getitem__([cidx])
 			size = len(cidx)
 			if size == 0:
 				continue
@@ -152,8 +165,13 @@ class API:
 			else:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim}),2)
 
-		self.train_dataset = Data.TensorDataset(self.train_dataset.tensors[0], self.train_dataset.tensors[1], self.weight_tensor)
-		self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
+		self.weightset = Data.TensorDataset(self.weight_tensor)
+		self.train_loader = torch.utils.data.DataLoader(
+			ConcatDataset(
+				self.train_dataset,
+				self.weightset
+			),
+			batch_size=self.batch_size, shuffle=True, collate_fn=self._collateFn)
 
 	def clusterTrajectory(self):
 		self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
