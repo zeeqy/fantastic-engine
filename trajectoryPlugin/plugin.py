@@ -83,15 +83,16 @@ class API:
 		self.batch_size = batch_size
 		self.train_dataset = trainset
 		self.valid_dataset = validset
+		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.valid_dataset.__len__(),shuffle=False)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
 		self.weightset = Data.TensorDataset(self.weight_tensor)
-		self.train_loader = torch.utils.data.DataLoader(
+		self.train_loader = Data.DataLoader(
 			ConcatDataset(
 				self.train_dataset,
 				self.weightset
 			),
 			batch_size=self.batch_size, shuffle=True,collate_fn=self._collateFn)
-		self.reweight_loader = torch.utils.data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
+		self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
 		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
 
 	def log(self, msg, level):
@@ -122,8 +123,9 @@ class API:
 	def _validGrad(self, validNet):
 		valid_grad = []
 		validNet.eval()
-		valid_output = validNet(self.valid_dataset.tensors[0].to(self.device))
-		valid_loss = self.loss_func(valid_output, self.valid_dataset.tensors[1].to(self.device), None)
+		data, target = next(iter(self.valid_loader))
+		valid_output = validNet(data.to(self.device))
+		valid_loss = self.loss_func(valid_output, target.to(self.device), None)
 		validNet.zero_grad()
 		valid_loss.backward()
 		for w in validNet.parameters():
@@ -166,7 +168,7 @@ class API:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim}),2)
 
 		self.weightset = Data.TensorDataset(self.weight_tensor)
-		self.train_loader = torch.utils.data.DataLoader(
+		self.train_loader = Data.DataLoader(
 			ConcatDataset(
 				self.train_dataset,
 				self.weightset
