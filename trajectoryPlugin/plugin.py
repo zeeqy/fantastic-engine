@@ -139,15 +139,14 @@ class API:
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
-			x_cluster, y_cluster= self.train_dataset.__getitem__([cidx])
 			size = len(cidx)
 			if size == 0:
 				continue
 			sample_size = min(int(size), num_sample)
-			sample_idx = np.random.choice(range(size), sample_size, replace=False).tolist()
-			x_subset = x_cluster[sample_idx]
-			y_subset = y_cluster[sample_idx]
-			
+			sample_idx = [cidx[i] for i in np.random.choice(range(size), sample_size, replace=False).tolist()]
+			subset_loader = torch.utils.data.DataLoader(Data.Subset(self.train_dataset, sample_idx), batch_size=sample_size, shuffle=False)
+			x_subset, y_subset = next(iter(subset_loader))
+
 			validNet.eval() # eval mode, important!
 			subset_output = validNet(x_subset.to(self.device))
 			subset_loss = self.loss_func(subset_output, y_subset.to(self.device), None)
