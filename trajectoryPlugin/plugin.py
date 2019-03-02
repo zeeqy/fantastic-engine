@@ -83,7 +83,7 @@ class API:
 		self.batch_size = batch_size
 		self.train_dataset = trainset
 		self.valid_dataset = validset
-		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.valid_dataset.__len__(),shuffle=False)
+		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.batch_size,shuffle=False)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
 		self.weightset = Data.TensorDataset(self.weight_tensor)
 		self.train_loader = Data.DataLoader(
@@ -123,11 +123,12 @@ class API:
 	def _validGrad(self, validNet):
 		valid_grad = []
 		validNet.eval()
-		data, target = next(iter(self.valid_loader))
-		valid_output = validNet(data.to(self.device))
-		valid_loss = self.loss_func(valid_output, target.to(self.device), None)
-		validNet.zero_grad()
-		valid_loss.backward()
+		for step, (data, target) in enumerate(self.reweight_loader):
+			data, target = data.to(self.device), target.to(self.device)
+			valid_output = validNet(data)
+			valid_loss = self.loss_func(valid_output, target, None)
+			validNet.zero_grad()
+			valid_loss.backward()
 		for w in validNet.parameters():
 			if w.requires_grad:
 				valid_grad.extend(list(w.grad.cpu().detach().numpy().flatten()))
@@ -158,14 +159,15 @@ class API:
 			subset_grads = np.array(subset_grads)
 			sim = 1 - spatial.distance.cosine(valid_grad, subset_grads)
 
-			self.weight_tensor[cidx] += 0.05 * sim #how to update weight?
+			self.weight_tensor[cidx] += 0.05 * sim # how to update weight?
 			self.weight_tensor[cidx] = self.weight_tensor[cidx].clamp(0.001)
 			if special_index != []:
 				num_special = self._specialRatio(cidx,special_index)
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': '{:.4f}'.format(sim), 'num_special': num_special, 'spe_ratio':'{:.4f}'.format(num_special/size)}),2)
 			else:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim}),2)
-
+		norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor) # normalizing weights
+		self.weight_tensor = norm_fact * self.weight_tensor
 		self.weightset = Data.TensorDataset(self.weight_tensor)
 		self.train_loader = Data.DataLoader(
 			ConcatDataset(
