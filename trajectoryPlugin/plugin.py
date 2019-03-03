@@ -123,11 +123,11 @@ class API:
 	def _validGrad(self, validNet):
 		valid_grad = []
 		validNet.eval()
+		validNet.zero_grad()
 		for step, (data, target) in enumerate(self.reweight_loader):
 			data, target = data.to(self.device), target.to(self.device)
 			valid_output = validNet(data)
 			valid_loss = self.loss_func(valid_output, target, None)
-			validNet.zero_grad()
 			valid_loss.backward()
 		for w in validNet.parameters():
 			if w.requires_grad:
