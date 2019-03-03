@@ -145,14 +145,15 @@ class API:
 				continue
 			sample_size = min(int(size), num_sample)
 			sample_idx = [cidx[i] for i in np.random.choice(range(size), sample_size, replace=False).tolist()]
-			subset_loader = torch.utils.data.DataLoader(Data.Subset(self.train_dataset, sample_idx), batch_size=sample_size, shuffle=False)
-			x_subset, y_subset = next(iter(subset_loader))
+			subset_loader = torch.utils.data.DataLoader(Data.Subset(self.train_dataset, sample_idx), batch_size=self.batch_size, shuffle=False)
 
 			validNet.eval() # eval mode, important!
-			subset_output = validNet(x_subset.to(self.device))
-			subset_loss = self.loss_func(subset_output, y_subset.to(self.device), None)
 			validNet.zero_grad()
-			subset_loss.backward()
+			for step, (data, target) in enumerate(subset_loader):
+				data, target = data.to(self.device), target.to(self.device)
+				subset_output = validNet(data)
+				subset_loss = self.loss_func(subset_output, target, None)
+				subset_loss.backward()
 			for w in validNet.parameters():
 				if w.requires_grad:
 					subset_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
@@ -175,6 +176,7 @@ class API:
 				self.weightset
 			),
 			batch_size=self.batch_size, shuffle=True, collate_fn=self._collateFn)
+		validNet.zero_grad()
 
 	def clusterTrajectory(self):
 		self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
