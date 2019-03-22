@@ -13,18 +13,17 @@ class WeightedCrossEntropyLoss(nn.Module):
 	Cross entropy with instance-wise weights. Leave `aggregate` to None to obtain a loss
 	vector of shape (batch_size,).
 	"""
-	def __init__(self, aggregate='mean'):
+	def __init__(self):
 		super(WeightedCrossEntropyLoss, self).__init__()
-		assert aggregate in ['sum', 'mean', None]
-		self.aggregate = aggregate
 		self.base_loss = nn.CrossEntropyLoss(reduction='none')
 
-	def forward(self, data, target, weights=None):
-		if self.aggregate == 'sum':
+	def forward(self, data, target, weights=None, aggregate='mean'):
+		assert aggregate in ['sum', 'mean', None]
+		if aggregate == 'sum':
 			return self.cross_entropy_with_weights(data, target, weights).sum()
-		elif self.aggregate == 'mean':
+		elif aggregate == 'mean':
 			return self.cross_entropy_with_weights(data, target, weights).mean()
-		elif self.aggregate is None:
+		elif aggregate is None:
 			return self.cross_entropy_with_weights(data, target, weights)
 
 	def cross_entropy_with_weights(self, data, target, weights=None):
