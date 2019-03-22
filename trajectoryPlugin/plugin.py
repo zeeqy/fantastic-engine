@@ -112,6 +112,7 @@ class API:
 		return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 	def createTrajectory(self, torchnn):
+		torchnn.eval()
 		with torch.no_grad():
 			prob_output = []
 			for step, (data, target) in enumerate(self.reweight_loader):
