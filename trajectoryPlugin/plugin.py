@@ -32,6 +32,18 @@ class WeightedCrossEntropyLoss(nn.Module):
 			loss = loss * weights
 		return loss
 
+class RandomBatchSampler(torch.utils.data.sampler.Sampler):
+	def __init__(self, shuffle,batch_size):
+		self.batch_size = batch_size
+		self.shuffle = shuffle
+
+	def __iter__(self):
+		data_iter = iter(self.shuffle)
+		return data_iter
+
+	def __len__(self):
+		return len(sum(self.shuffle,[]))//self.batch_size
+
 class ConcatDataset(torch.utils.data.Dataset):
 	def __init__(self, *datasets):
 		self.datasets = datasets
@@ -68,32 +80,30 @@ class API:
 			res += core_collate(samples)
 		return res
 
-	# def dataTensor(self, x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, batch_size=100):
-	# 	self.batch_size = batch_size
-	# 	self.weight_tensor = torch.from_numpy(np.ones_like(y_train_tensor,dtype=np.float32))
-	# 	self.weight_tensor.requires_grad = False
-	# 	self.train_dataset = Data.TensorDataset(x_train_tensor, y_train_tensor, self.weight_tensor)
-	# 	self.train_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
-	# 	self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
-	# 	self.valid_dataset = Data.TensorDataset(x_valid_tensor, y_valid_tensor)
-	# 	self.traject_matrix = np.empty((y_train_tensor.size()[0],0))
+	def _shuffleIndex(self):
+		rand_idx = torch.randperm(self.train_dataset.__len__()).tolist()
+		return [rand_idx[i:i+self.batch_size] for i in range(0, len(rand_idx), self.batch_size)]
 
-	def dataLoader(self, trainset, validset, batch_size=100):
-		self.batch_size = batch_size
-		self.train_dataset = trainset
-		self.valid_dataset = validset
-		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.batch_size,shuffle=False)
-		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
-		self.weightset = Data.TensorDataset(self.weight_tensor)
+	def _generateTrainLoader(self):
+		self.rand_idx = self._shuffleIndex()
+		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
 		self.train_loader = Data.DataLoader(
 			ConcatDataset(
 				self.train_dataset,
 				self.weightset
 			),
-			batch_size=self.batch_size, shuffle=True, collate_fn=self._collateFn)
-		self.reweight_loader = Data.DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=False)
-		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
+			batch_sampler=self.batch_sampler, collate_fn=self._collateFn)
 
+	def dataLoader(self, trainset, validset, batch_size=100):
+		self.batch_size = batch_size
+		self.train_dataset = trainset
+		self.valid_dataset = validset
+		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.batch_size,shuffle=True)
+		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
+		self.weightset = Data.TensorDataset(self.weight_tensor)
+		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
+		self._generateTrainLoader()
+		
 	def log(self, msg, level):
 		if self.iprint >= level:
 			print(msg)
@@ -113,18 +123,18 @@ class API:
 	def createTrajectory(self, torchnn):
 		torchnn.eval()
 		with torch.no_grad():
-			prob_output = []
-			for step, (data, target) in enumerate(self.reweight_loader):
+			prob_output = np.empty(self.train_dataset.__len__())
+			for step, (data, target, weight) in enumerate(self.train_loader):
 				data = data.to(self.device)
 				output = torchnn(data).data.cpu().numpy().tolist()
-				prob_output += self._correctProb(output, target.data.cpu().numpy())
+				prob_output[self.rand_idx[step]] = self._correctProb(output, target.data.cpu().numpy())
 			self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
 
 	def _validGrad(self, validNet):
 		valid_grads = []
 		validNet.eval()
 		validNet.zero_grad()
-		for step, (data, target) in enumerate(self.reweight_loader):
+		for step, (data, target) in enumerate(self.valid_loader):
 			data, target = data.to(self.device), target.to(self.device)
 			valid_output = validNet(data)
 			valid_loss = self.loss_func(valid_output, target, None)
@@ -172,29 +182,23 @@ class API:
 		for cid in range(self.num_cluster):
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
 			size = len(cidx)
-			#self.weight_tensor[cidx] += 0.05 * sim_dict[cid]
+			self.weight_tensor[cidx] += 0.05 * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
-
 				num_special = self._specialRatio(cidx, special_index)
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': '{:.4f}'.format(sim_dict[cid]), 'num_special': num_special, 'spe_ratio':'{:.4f}'.format(num_special/size)}),2)
 			else:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
 
-		# #normalize weight tensor
-		# self.weight_tensor = self.weight_tensor.clamp(0.001)
-		# norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor)
-		# self.weight_tensor = norm_fact * self.weight_tensor
-		# self.weightset = Data.TensorDataset(self.weight_tensor)
+		#normalize weight tensor
+		self.weight_tensor = self.weight_tensor.clamp(0.001)
+		norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor)
+		self.weight_tensor = norm_fact * self.weight_tensor
+		self.weightset = Data.TensorDataset(self.weight_tensor)
 		
-		# #refresh train_loader
-		# self.train_loader = Data.DataLoader(
-		# 	ConcatDataset(
-		# 		self.train_dataset,
-		# 		self.weightset
-		# 	),
-		# 	batch_size=self.batch_size, shuffle=True, collate_fn=self._collateFn)
+		#refresh train_loader
+		self._generateTrainLoader()
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
