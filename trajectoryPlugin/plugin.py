@@ -171,28 +171,30 @@ class API:
 		#update weights
 		for cid in range(self.num_cluster):
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
-			self.weight_tensor[cidx] += 0.05 * sim_dict[cid]
+			size = len(cidx)
+			#self.weight_tensor[cidx] += 0.05 * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
-				num_special = self._specialRatio(cidx,special_index)
-				self.log('| - ' + str({cid:cid, 'size': sample_size, 'sim': '{:.4f}'.format(sim), 'num_special': num_special, 'spe_ratio':'{:.4f}'.format(num_special/sample_size)}),2)
-			else:
-				self.log('| - ' + str({cid:cid, 'size': sample_size, 'sim': sim}),2)
 
-		#normalize weight tensor
-		self.weight_tensor = self.weight_tensor.clamp(0.001)
-		norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor)
-		self.weight_tensor = norm_fact * self.weight_tensor
-		self.weightset = Data.TensorDataset(self.weight_tensor)
+				num_special = self._specialRatio(cidx, special_index)
+				self.log('| - ' + str({cid:cid, 'size': size, 'sim': '{:.4f}'.format(sim_dict[cid]), 'num_special': num_special, 'spe_ratio':'{:.4f}'.format(num_special/size)}),2)
+			else:
+				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
+
+		# #normalize weight tensor
+		# self.weight_tensor = self.weight_tensor.clamp(0.001)
+		# norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor)
+		# self.weight_tensor = norm_fact * self.weight_tensor
+		# self.weightset = Data.TensorDataset(self.weight_tensor)
 		
-		#refresh train_loader
-		self.train_loader = Data.DataLoader(
-			ConcatDataset(
-				self.train_dataset,
-				self.weightset
-			),
-			batch_size=self.batch_size, shuffle=True, collate_fn=self._collateFn)
+		# #refresh train_loader
+		# self.train_loader = Data.DataLoader(
+		# 	ConcatDataset(
+		# 		self.train_dataset,
+		# 		self.weightset
+		# 	),
+		# 	batch_size=self.batch_size, shuffle=True, collate_fn=self._collateFn)
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
