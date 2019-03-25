@@ -6,7 +6,6 @@ from torchvision import datasets, transforms
 import argparse
 import numpy as np
 import json, time
-import matplotlib.pyplot as plt
 
 from trajectoryPlugin.plugin import API
 
