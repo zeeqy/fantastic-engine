@@ -52,9 +52,11 @@ def train_reweight(model, device, optimizer, epoch, api, args):
 	api.createTrajectory(model)
 
 	# cluster trajectory + reweight data
-	if epoch > args.burn_in:
+	if epoch > args.burn_in and (epoch-arg.burn_in) % args.reweight_interval == 0:
 		api.clusterTrajectory() # run gmm cluster
 		api.reweightData(model, 1e6) # update train_loader
+		return api.weight_tensor.data.cpu().numpy().tolist()
+	return None
     
 
 def forward_fn(model, device, api, forward_type, test_loader=None):
@@ -105,25 +107,27 @@ def forward_fn(model, device, api, forward_type, test_loader=None):
 def main():
 	# Training settings
 	parser = argparse.ArgumentParser(description='MNIST Baseline Reweight Comparison')
-	parser.add_argument('--batch_size', type=int, default=64, metavar='N',
+	parser.add_argument('--batch_size', type=int, default=64, metavar='B',
 						help='input batch size for training (default: 64)')
-	parser.add_argument('--epochs', type=int, default=10, metavar='N',
+	parser.add_argument('--epochs', type=int, default=10, metavar='E',
 						help='number of epochs to train (default: 10)')
-	parser.add_argument('--burn_in', type=int, default=5, metavar='N',
+	parser.add_argument('--burn_in', type=int, default=5, metavar='BN',
 						help='number of burn-in epochs (default: 5)')
-	parser.add_argument('--valid_size', type=int, default=1000, metavar='N',
-					help='input validation size (default: 1000)')
+	parser.add_argument('--valid_size', type=int, default=1000, metavar='VS',
+						help='input validation size (default: 1000)')
 	parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
 						help='learning rate (default: 0.01)')
 	parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
 						help='SGD momentum (default: 0.5)')
-	parser.add_argument('--noise_level', type=float, default=0.1, metavar='M',
-					help='percentage of noise data (default: 0.1)')
-	parser.add_argument('--num_cluster', type=int, default=3, metavar='M',
-					help='number of cluster (default: 3)')
+	parser.add_argument('--noise_level', type=float, default=0.1, metavar='NL',
+						help='percentage of noise data (default: 0.1)')
+	parser.add_argument('--num_cluster', type=int, default=3, metavar='NC',
+						help='number of cluster (default: 3)')
+	parser.add_argument('--reweight_interval', type=int, default=1, metavar='RI',
+						help='number of epochs between reweighting')
 	parser.add_argument('--seed', type=int, default=1, metavar='S',
 						help='random seed (default: 1)')
-	parser.add_argument('--save-model', action='store_true', default=False,
+	parser.add_argument('--save_model', action='store_true', default=False,
 						help='For Saving the current Model')
 	
 	args = parser.parse_args()
@@ -190,10 +194,13 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, iprint=1)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
+	epoch_reweight = []
 
 	for epoch in range(1, args.epochs + 1):
 
-		train_reweight(model_reweight, device, optimizer_reweight, epoch, api, args)
+		update_weights = train_reweight(model_reweight, device, optimizer_reweight, epoch, api, args)
+		if update_weights != None:
+			epoch_reweight.append({'epoch':epoch, 'weight_tensor':update_weights})
 		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
 		reweight_train_loss.append(loss)
 		reweight_train_accuracy.append(accuracy)
@@ -210,6 +217,7 @@ def main():
 		torch.save(model.state_dict(),"mnist_cnn_baseline.pt")
 
 	res = vars(args)
+	timestamp = int(time.time())
 
 	res.update({'standard_train_loss':standard_train_loss})
 	res.update({'standard_train_accuracy':standard_train_accuracy})
@@ -225,10 +233,15 @@ def main():
 	res.update({'reweight_test_loss':reweight_test_loss})
 	res.update({'reweight_test_accuracy':reweight_test_accuracy})
 	
-	res.update({'timestampe':int(time.time())})
+	res.update({'timestamp': timestamp})
 
-	with open('mnist_cnn_baseline.data', 'a+') as f:
+	with open('mnist_experiments/mnist_cnn_baseline_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
+	f.close()
+
+	with open('mnist_experiments/weights/mnist_cnn_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
+		for ws in epoch_reweight:
+			f.write(json.dumps(ws) + '\n')
 	f.close()
 
 if __name__ == '__main__':
