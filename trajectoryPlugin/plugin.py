@@ -101,7 +101,6 @@ class API:
 		self.valid_dataset = validset
 		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.batch_size,shuffle=True)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
-		self.weightset = Data.TensorDataset(self.weight_tensor)
 		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
 		self._generateTrainLoader()
 		
