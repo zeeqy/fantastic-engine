@@ -38,10 +38,6 @@ def train_standard(model, device, optimizer, epoch, api, args):
 		loss = api.loss_func(output, target, weight, 'mean')
 		loss.backward()
 		optimizer.step()
-		if batch_idx % args.log_interval == 0:
-			print('Train Standard Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-					epoch, batch_idx * len(data), len(api.train_loader.dataset),
-					100. * batch_idx / len(api.train_loader), loss.item()))
 
 def train_reweight(model, device, optimizer, epoch, api, args):
 	model.train()
@@ -52,10 +48,6 @@ def train_reweight(model, device, optimizer, epoch, api, args):
 		loss = api.loss_func(output, target, weight, 'mean')
 		loss.backward()
 		optimizer.step()
-		if batch_idx % args.log_interval == 0:
-			print('Train Reweight Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-					epoch, batch_idx * len(data), len(api.train_loader.dataset),
-					100. * batch_idx / len(api.train_loader), loss.item()))
 
 	# record trajectory
 	api.createTrajectory(model)
@@ -132,8 +124,6 @@ def main():
 					help='number of cluster (default: 3)')
 	parser.add_argument('--seed', type=int, default=1, metavar='S',
 						help='random seed (default: 1)')
-	parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-						help='how many batches to wait before logging training status')
 	parser.add_argument('--save-model', action='store_true', default=False,
 						help='For Saving the current Model')
 	
@@ -244,19 +234,6 @@ def main():
 
 if __name__ == '__main__':
 	main()
-
-
-# fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3)
-
-# x = range(1, epochs+1, 1)
-# ax1.plot(x, train_loss, '--')
-# ax1.title('Train Loss')
-# ax2.plot(x, valid_loss, '--')
-# ax3.plot(x, test_loss, '--')
-# ax6.plot(x, test_accuracy, '--')
-
-# plt.tight_layout()
-# plt.show()
 
 
 
