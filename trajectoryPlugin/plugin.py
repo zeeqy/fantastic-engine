@@ -182,6 +182,8 @@ class API:
 		for cid in range(self.num_cluster):
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
 			size = len(cidx)
+			if size == 0:
+				continue
 			self.weight_tensor[cidx] += 0.05 * sim_dict[cid]
 			
 			#print some insights about noisy data
