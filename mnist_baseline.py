@@ -52,7 +52,7 @@ def train_reweight(model, device, optimizer, epoch, api, args):
 	api.createTrajectory(model)
 
 	# cluster trajectory + reweight data
-	if epoch > args.burn_in and (epoch-arg.burn_in) % args.reweight_interval == 0:
+	if epoch > args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
 		api.clusterTrajectory() # run gmm cluster
 		api.reweightData(model, 1e6) # update train_loader
 		return api.weight_tensor.data.cpu().numpy().tolist()
