@@ -1,5 +1,6 @@
 import argparse
 import json
+import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
@@ -93,6 +94,26 @@ def main():
 	
 	plt.savefig('figures/loss_accuracy_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 
+	with open('mnist_experiments/weights/mnist_cnn_baseline_reweight_{}.data'.format(res['timestamp']), 'r+') as f:
+		rec = f.read().split('\n')[:-1]
+	f.close()
+	
+	grid = int(np.around(np.sqrt(len(rec))))
+	fig, axs = plt.subplots(grid,grid, figsize=(20, 10))
+	i = 0
+	j = 0
+	for item in rec:
+		item_dict = json.loads(item)
+		print(min(item_dict['weight_tensor']), max(item_dict['weight_tensor']))
+		axs[i,j].hist(item_dict['weight_tensor'],10)
+		axs[i,j].set_title("Weights Distirbution at {} epoch".format(item_dict['epoch']))
+		if j < grid-1:
+			j += 1
+		else:
+			i += 1
+			j = 0
+	plt.savefig('figures/weights_distribution_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
+	
 if __name__ == '__main__':
 	main()
 

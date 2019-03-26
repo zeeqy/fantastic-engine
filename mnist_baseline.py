@@ -31,10 +31,10 @@ class Net(nn.Module):
 def train_standard(model, device, optimizer, epoch, api, args):
 	model.train()
 	for batch_idx, (data, target, weight) in enumerate(api.train_loader):   
-		data, target, weight = data.to(device), target.to(device), weight.to(device)
+		data, target = data.to(device), target.to(device)
 		optimizer.zero_grad()
 		output = model(data)
-		loss = api.loss_func(output, target, weight, 'mean')
+		loss = api.loss_func(output, target, None, 'mean')
 		loss.backward()
 		optimizer.step()
 
@@ -52,7 +52,7 @@ def train_reweight(model, device, optimizer, epoch, api, args):
 	api.createTrajectory(model)
 
 	# cluster trajectory + reweight data
-	if epoch > args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
+	if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
 		api.clusterTrajectory() # run gmm cluster
 		api.reweightData(model, 1e6) # update train_loader
 		return api.weight_tensor.data.cpu().numpy().tolist()
