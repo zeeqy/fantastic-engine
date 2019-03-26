@@ -176,9 +176,11 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, iprint=1)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
+	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
 
 	for epoch in range(1, args.epochs + 1):
 
+		scheduler_standard.step()
 		train_standard(model_standard, device, optimizer_standard, epoch, api, args)
 		loss, accuracy = forward_fn(model_standard, device, api, 'train')
 		standard_train_loss.append(loss)
@@ -194,10 +196,12 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, iprint=1)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
+	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
 	epoch_reweight = []
 
 	for epoch in range(1, args.epochs + 1):
 
+		scheduler_reweight.step()
 		update_weights = train_reweight(model_reweight, device, optimizer_reweight, epoch, api, args)
 		if update_weights != None:
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':update_weights})
