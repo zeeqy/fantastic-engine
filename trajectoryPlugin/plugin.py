@@ -162,16 +162,9 @@ class API:
 			for w in validNet.parameters():
 				if w.requires_grad:
 					subset_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
-			
-			# customized similarity
-			#sim = np.dot(valid_grads, subset_grads) / sample_size
+
 			sim = 1 - spatial.distance.cosine(valid_grads, subset_grads)
 			sim_dict.update({cid : sim})
-		
-		#normalize similarity
-		# sim_factor = 1.0/np.mean(np.abs(list(sim_dict.values())))
-		# for key in sim_dict:
-		# 	sim_dict[key] = sim_dict[key] * sim_factor
 
 		#update weights
 		for cid in range(self.num_cluster):

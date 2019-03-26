@@ -91,7 +91,7 @@ def main():
 	axs[1,2].set_title("Test Accuracy")
 	axs[1,2].legend()
 	
-	plt.savefig('mnist_experiments/figures/loss_accuracy_{}'.format(res['timestamp']), format='eps', dpi=1000)
+	plt.savefig('figures/loss_accuracy_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 
 if __name__ == '__main__':
 	main()
