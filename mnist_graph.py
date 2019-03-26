@@ -104,7 +104,6 @@ def main():
 	j = 0
 	for item in rec:
 		item_dict = json.loads(item)
-		print(min(item_dict['weight_tensor']), max(item_dict['weight_tensor']))
 		axs[i,j].hist(item_dict['weight_tensor'],10)
 		axs[i,j].set_title("Weights Distirbution at {} epoch".format(item_dict['epoch']))
 		if j < grid-1:
