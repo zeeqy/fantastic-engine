@@ -1,0 +1,101 @@
+import argparse
+import json
+import matplotlib.pyplot as plt
+
+def main():
+	parser = argparse.ArgumentParser(description='MNIST Baseline Graph')
+	parser.add_argument('--batch_size', type=int, default=64, metavar='B',
+						help='input batch size for training (default: 64)')
+	parser.add_argument('--epochs', type=int, default=10, metavar='E',
+						help='number of epochs to train (default: 10)')
+	parser.add_argument('--burn_in', type=int, default=5, metavar='BN',
+						help='number of burn-in epochs (default: 5)')
+	parser.add_argument('--valid_size', type=int, default=1000, metavar='VS',
+						help='input validation size (default: 1000)')
+	parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+						help='learning rate (default: 0.01)')
+	parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
+						help='SGD momentum (default: 0.5)')
+	parser.add_argument('--noise_level', type=float, default=0.1, metavar='NL',
+						help='percentage of noise data (default: 0.1)')
+	parser.add_argument('--num_cluster', type=int, default=3, metavar='NC',
+						help='number of cluster (default: 3)')
+	parser.add_argument('--reweight_interval', type=int, default=1, metavar='RI',
+						help='number of epochs between reweighting')
+	parser.add_argument('--seed', type=int, default=1, metavar='S',
+						help='random seed (default: 1)')
+
+	args = parser.parse_args()
+	args_dict = vars(args)
+	
+	with open('mnist_experiments/mnist_cnn_baseline_response.data', 'r+') as f:
+		rec = f.read().split('\n')[:-1]
+	f.close()
+	
+	res = []
+	for item in rec:
+		item_dict = json.loads(item)
+		match = True
+		for key in args_dict.keys():
+			if args_dict[key] != item_dict[key]:
+				match = False
+		if match:
+			res.append(item_dict)
+	
+	if len(res) == 0:
+		print("No config matches, please check your arguments!")
+		return None
+	
+	elif len(res) > 1:
+		print("More than one trail found, select the most recent one!")
+		res = sorted(res, key=lambda k: k['timestamp'], reverse=True)[0]
+	else:
+		res = res[0]
+	
+	fig, axs = plt.subplots(2,3, figsize=(20, 10))
+	
+	x = range(1, res['epochs']+1, 1)
+	axs[0,0].plot(x, res['standard_train_loss'], '--', color='blue', label='Standard')
+	axs[0,0].plot(x, res['reweight_train_loss'], '--', color='red', label='Reweighted')
+	axs[0,0].axvline(x=res['burn_in'], linestyle='--', color='black')
+	axs[0,0].set_title("Train Loss")
+	axs[0,0].legend()
+
+	axs[0,1].plot(x, res['standard_valid_loss'], '--', color='blue', label='Standard')
+	axs[0,1].plot(x, res['reweight_valid_loss'], '--', color='red', label='Reweighted')
+	axs[0,1].axvline(x=res['burn_in'], linestyle='--', color='black')
+	axs[0,1].set_title("Validation Loss")
+	axs[0,1].legend()
+
+	axs[0,2].plot(x, res['standard_test_loss'], '--', color='blue', label='Standard')
+	axs[0,2].plot(x, res['reweight_test_loss'], '--', color='red', label='Reweighted')
+	axs[0,2].axvline(x=res['burn_in'], linestyle='--', color='black')
+	axs[0,2].set_title("Test Loss")
+	axs[0,2].legend()
+	
+	axs[1,0].plot(x, res['standard_train_accuracy'], '--', color='blue', label='Standard')
+	axs[1,0].plot(x, res['reweight_train_accuracy'], '--', color='red', label='Reweighted')
+	axs[1,0].axvline(x=res['burn_in'], linestyle='--', color='black')
+	axs[1,0].set_title("Train Accuracy")
+	axs[1,0].legend()
+
+	axs[1,1].plot(x, res['standard_valid_accuracy'], '--', color='blue', label='Standard')
+	axs[1,1].plot(x, res['reweight_valid_accuracy'], '--', color='red', label='Reweighted')
+	axs[1,1].axvline(x=res['burn_in'], linestyle='--', color='black')
+	axs[1,1].set_title("Validation Accuracy")
+	axs[1,1].legend()
+
+	axs[1,2].plot(x, res['standard_test_accuracy'], '--', color='blue', label='Standard')
+	axs[1,2].plot(x, res['reweight_test_accuracy'], '--', color='red', label='Reweighted')
+	axs[1,2].axvline(x=res['burn_in'], linestyle='--', color='black')
+	axs[1,2].set_title("Test Accuracy")
+	axs[1,2].legend()
+	
+	plt.savefig('mnist_experiments/figures/loss_accuracy_{}'.format(res['timestamp']), format='eps', dpi=1000)
+
+if __name__ == '__main__':
+	main()
+
+
+
+
