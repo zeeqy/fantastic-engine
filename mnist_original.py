@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
+import json, time
 
 
 class Net(nn.Module):
@@ -34,6 +35,10 @@ def train(args, model, device, train_loader, optimizer, epoch):
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
+        if batch_idx % args.log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.item()))
 
 def validation(args, model, device, valid_loader):
     model.eval()
@@ -43,7 +48,7 @@ def validation(args, model, device, valid_loader):
         for data, target in valid_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
+            valid_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
@@ -147,7 +152,7 @@ def main():
         valid_loss.append(vloss)
         valid_accuracy.append(vaccuracy)
         test_loss.append(tloss)
-        test_loss.append(taccuracy)
+        test_accuracy.append(taccuracy)
 
     if (args.save_model):
         torch.save(model.state_dict(),"mnist_cnn.pt")
