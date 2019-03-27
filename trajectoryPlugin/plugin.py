@@ -182,10 +182,9 @@ class API:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
 
 		#normalize weight tensor
-		self.weight_tensor = self.weight_tensor.clamp(0.001)
-		norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor)
-		self.weight_tensor = norm_fact * self.weight_tensor
-		self.weightset = Data.TensorDataset(self.weight_tensor)
+		#self.weight_tensor = self.weight_tensor.clamp(0.001)
+		#norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor)
+		#self.weight_tensor = norm_fact * self.weight_tensor
 		
 		#refresh train_loader
 		self._generateTrainLoader()

@@ -98,7 +98,7 @@ def main():
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
-	grid = int(np.around(np.sqrt(len(rec))))
+	grid = int(np.ceil(np.sqrt(len(rec))))
 	fig, axs = plt.subplots(grid,grid, figsize=(20, 10))
 	i = 0
 	j = 0
