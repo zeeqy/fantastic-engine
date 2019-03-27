@@ -137,7 +137,7 @@ def main():
 
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	trainset = datasets.MNIST('../data', train=True, download=True,
+	mnistdata = datasets.MNIST('../data', train=True, download=True,
 				 transform=transforms.Compose([
 					 transforms.ToTensor(),
 					 transforms.Normalize((0.1307,), (0.3081,))
@@ -150,9 +150,9 @@ def main():
 					   ])),
 		batch_size=args.batch_size, shuffle=True)
 
-	datalen = len(trainset)
+	datalen = len(mnistdata)
 
-	trainset, validset = torch.utils.data.random_split(trainset, [datalen - args.valid_size, args.valid_size])
+	trainset, validset = torch.utils.data.random_split(mnistdata, [datalen - args.valid_size, args.valid_size])
 
 	model_standard = Net().to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
