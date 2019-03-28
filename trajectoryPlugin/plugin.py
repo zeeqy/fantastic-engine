@@ -6,10 +6,10 @@ import numpy as np
 from trajectoryPlugin.gmm import GaussianMixture
 from trajectoryPlugin.collate import default_collate as core_collate
 from scipy import spatial
-import logging
+import sys, logging
 
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class WeightedCrossEntropyLoss(nn.Module):
@@ -177,7 +177,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_tensor[cidx] += 0.5 * sim_dict[cid]
+			self.weight_tensor[cidx] += 0.05 * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
