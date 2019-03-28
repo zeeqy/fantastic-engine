@@ -38,7 +38,7 @@ def train_standard(model, device, optimizer, epoch, api, args):
 		loss.backward()
 		optimizer.step()
 
-def train_reweight(model, device, optimizer, epoch, api, args):
+def train_reweight(model, device, optimizer, epoch, api, args, noise_idx=[]):
 	model.train()
 	for batch_idx, (data, target, weight) in enumerate(api.train_loader):
 		data, target, weight = data.to(device), target.to(device), weight.to(device)
@@ -54,7 +54,7 @@ def train_reweight(model, device, optimizer, epoch, api, args):
 	# cluster trajectory + reweight data
 	if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
 		api.clusterTrajectory() # run gmm cluster
-		api.reweightData(model, 1e6) # update train_loader
+		api.reweightData(model, 1e6, noise_idx) # update train_loader
 		return api.weight_tensor.data.cpu().numpy().tolist()
 	return None
     
@@ -74,7 +74,6 @@ def forward_fn(model, device, api, forward_type, test_loader=None):
 		
 		loss /= len(test_loader.dataset)
 		accuracy = 100. * correct / len(test_loader.dataset)
-		print('Test Loss = {:.6f}, Test Accuracy = {:.2f}'.format(loss, accuracy))
 	
 	elif forward_type == 'train':
 		with torch.no_grad():
@@ -87,7 +86,6 @@ def forward_fn(model, device, api, forward_type, test_loader=None):
 
 		loss /= len(api.train_loader.dataset)
 		accuracy = 100. * correct / len(api.train_loader.dataset)
-		print('Train Loss = {:.6f}, Train Accuracy = {:.2f}'.format(loss, accuracy))
 				
 	elif forward_type == 'validation':
 		with torch.no_grad():
@@ -100,7 +98,6 @@ def forward_fn(model, device, api, forward_type, test_loader=None):
 
 		loss /= len(api.valid_loader.dataset)
 		accuracy = 100. * correct / len(api.valid_loader.dataset)
-		print('Validation Loss = {:.6f}, Validation Accuracy = {:.2f}'.format(loss, accuracy))
 
 	return loss, accuracy
 
@@ -154,6 +151,15 @@ def main():
 
 	trainset, validset = torch.utils.data.random_split(mnistdata, [datalen - args.valid_size, args.valid_size])
 
+	#nosiy data
+	noise_idx = []
+	noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)* args.noise_level), replace=False)
+	label = range(10)
+	for idx in noise_idx:
+		true_label = trainset.dataset.train_labels[idx]
+		noise_label = [lab for lab in label if lab != true_label]
+		trainset.dataset.train_labels[idx] = np.random.choice(noise_label)
+
 	model_standard = Net().to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
 
@@ -174,7 +180,7 @@ def main():
 	reweight_test_loss = []
 	reweight_test_accuracy = []
 
-	api = API(num_cluster=args.num_cluster, device=device, iprint=1)
+	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
 	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
 
@@ -194,7 +200,7 @@ def main():
 		standard_test_loss.append(loss)
 		standard_test_accuracy.append(accuracy)
 
-	api = API(num_cluster=args.num_cluster, device=device, iprint=1)
+	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
 	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
 	epoch_reweight = []
@@ -202,7 +208,7 @@ def main():
 	for epoch in range(1, args.epochs + 1):
 
 		scheduler_reweight.step()
-		update_weights = train_reweight(model_reweight, device, optimizer_reweight, epoch, api, args)
+		update_weights = train_reweight(model_reweight, device, optimizer_reweight, epoch, api, args, noise_idx)
 		if update_weights != None:
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':update_weights})
 		loss, accuracy = forward_fn(model_reweight, device, api, 'train')

@@ -6,6 +6,10 @@ import numpy as np
 from trajectoryPlugin.gmm import GaussianMixture
 from trajectoryPlugin.collate import default_collate as core_collate
 from scipy import spatial
+import logging
+
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class WeightedCrossEntropyLoss(nn.Module):
@@ -65,6 +69,7 @@ class API:
 		self.num_cluster = num_cluster
 		self.loss_func = WeightedCrossEntropyLoss()
 		self.device = device
+		self.logger = logging.getLogger(__name__)
 		self.iprint = iprint #output level
 
 	def _collateFn(self, batch):
@@ -100,7 +105,7 @@ class API:
 		
 	def log(self, msg, level):
 		if self.iprint >= level:
-			print(msg)
+			self.logger.info(msg)
 		if self.iprint == 99:
 			pass # if we need to dump json to file in the future
 
@@ -172,7 +177,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_tensor[cidx] += 0.1 * sim_dict[cid]
+			self.weight_tensor[cidx] += 0.5 * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
