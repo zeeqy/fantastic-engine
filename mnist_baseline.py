@@ -28,17 +28,7 @@ class Net(nn.Module):
 		x = self.fc2(x)
 		return F.log_softmax(x, dim=1)
 
-def train_standard(model, device, optimizer, epoch, api, args):
-	model.train()
-	for batch_idx, (data, target, weight) in enumerate(api.train_loader):   
-		data, target = data.to(device), target.to(device)
-		optimizer.zero_grad()
-		output = model(data)
-		loss = api.loss_func(output, target, None, 'mean')
-		loss.backward()
-		optimizer.step()
-
-def train_reweight(model, device, optimizer, epoch, api, args, noise_idx=[]):
+def train_fn(model, device, optimizer, api):
 	model.train()
 	for batch_idx, (data, target, weight) in enumerate(api.train_loader):
 		data, target, weight = data.to(device), target.to(device), weight.to(device)
@@ -47,17 +37,6 @@ def train_reweight(model, device, optimizer, epoch, api, args, noise_idx=[]):
 		loss = api.loss_func(output, target, weight, 'mean')
 		loss.backward()
 		optimizer.step()
-
-	# record trajectory
-	api.createTrajectory(model)
-
-	# cluster trajectory + reweight data
-	if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
-		api.clusterTrajectory() # run gmm cluster
-		api.reweightData(model, 1e6, noise_idx) # update train_loader
-		return api.weight_tensor.data.cpu().numpy().tolist()
-	return None
-    
 
 def forward_fn(model, device, api, forward_type, test_loader=None):
 	model.eval()
@@ -147,18 +126,21 @@ def main():
 					   ])),
 		batch_size=args.batch_size, shuffle=True)
 
-	datalen = len(mnistdata)
-
-	trainset, validset = torch.utils.data.random_split(mnistdata, [datalen - args.valid_size, args.valid_size])
+	valid_index = np.random.choice(range(len(mnistdata)), size=args.valid_size, replace=False).tolist()
+	train_index = np.delete(range(len(mnistdata)), valid_index).tolist()
+	trainset = torch.utils.data.dataset.Subset(mnistdata, train_index)
+	validset = torch.utils.data.dataset.Subset(mnistdata, valid_index)
 
 	#nosiy data
-	noise_idx = []
-	noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)* args.noise_level), replace=False)
-	label = range(10)
-	for idx in noise_idx:
-		true_label = trainset.dataset.train_labels[idx]
-		noise_label = [lab for lab in label if lab != true_label]
-		trainset.dataset.train_labels[idx] = int(np.random.choice(noise_label))
+	if args.noise_level == 0:
+		noise_idx = []
+	else:
+		noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)*args.noise_level), replace=False)
+		label = range(10)
+		for idx in noise_idx:
+		    true_label = trainset.dataset.targets[train_index[idx]]
+		    noise_label = [lab for lab in label if lab != true_label]
+		    trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 
 	model_standard = Net().to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
@@ -187,7 +169,8 @@ def main():
 	for epoch in range(1, args.epochs + 1):
 
 		scheduler_standard.step()
-		train_standard(model_standard, device, optimizer_standard, epoch, api, args)
+		train_fn(model_standard, device, optimizer_standard, api)
+		
 		loss, accuracy = forward_fn(model_standard, device, api, 'train')
 		standard_train_loss.append(loss)
 		standard_train_accuracy.append(accuracy)
@@ -208,9 +191,13 @@ def main():
 	for epoch in range(1, args.epochs + 1):
 
 		scheduler_reweight.step()
-		update_weights = train_reweight(model_reweight, device, optimizer_reweight, epoch, api, args, noise_idx)
-		if update_weights != None:
-			epoch_reweight.append({'epoch':epoch, 'weight_tensor':update_weights})
+		train_fn(model_reweight, device, optimizer_reweight, api)
+		api.createTrajectory(model_reweight)
+		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
+			api.clusterTrajectory() 
+			api.reweightData(model_reweight, 1e6, noise_idx)
+			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
+
 		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
 		reweight_train_loss.append(loss)
 		reweight_train_accuracy.append(accuracy)
