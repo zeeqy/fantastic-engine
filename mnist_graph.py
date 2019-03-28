@@ -59,7 +59,7 @@ def main():
 	axs[0,0].plot(x, res['standard_train_loss'], '--', color='blue', label='Standard')
 	axs[0,0].plot(x, res['reweight_train_loss'], '--', color='red', label='Reweighted')
 	axs[0,0].axvline(x=res['burn_in'], linestyle='--', color='black')
-	axs[0,0].set_title("Train Loss")
+	axs[0,0].set_title("Train (Weighted) Loss")
 	axs[0,0].legend()
 
 	axs[0,1].plot(x, res['standard_valid_loss'], '--', color='blue', label='Standard')
