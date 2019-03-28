@@ -158,7 +158,7 @@ def main():
 	for idx in noise_idx:
 		true_label = trainset.dataset.train_labels[idx]
 		noise_label = [lab for lab in label if lab != true_label]
-		trainset.dataset.train_labels[idx] = np.random.choice(noise_label)
+		trainset.dataset.train_labels[idx] = int(np.random.choice(noise_label))
 
 	model_standard = Net().to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
