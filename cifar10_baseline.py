@@ -75,7 +75,6 @@ def main():
 	parser.add_argument('--noise_level', type=float, default=0.1, help='percentage of noise data (default: 0.1)')
 	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
 	parser.add_argument('--dropout', default=0.3, type=float, help='dropout_rate')
-	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')	
 	
 	args = parser.parse_args()
@@ -86,20 +85,20 @@ def main():
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 	transform_train = transforms.Compose([
-	    transforms.RandomCrop(32, padding=4),
-	    transforms.RandomHorizontalFlip(),
-	    transforms.ToTensor(),
-	    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+		transforms.RandomCrop(32, padding=4),
+		transforms.RandomHorizontalFlip(),
+		transforms.ToTensor(),
+		transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 	])
 
 	transform_test = transforms.Compose([
-	    transforms.ToTensor(),
-	    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+		transforms.ToTensor(),
+		transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 	])
 
-    cifardata = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
-    testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=False, transform=transform_test)
-    num_classes = 10
+	cifardata = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
+	testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=False, transform=transform_test)
+	num_classes = 10
 
 	testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
@@ -115,24 +114,24 @@ def main():
 		noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)*args.noise_level), replace=False)
 		label = range(10)
 		for idx in noise_idx:
-		    true_label = trainset.dataset.targets[train_index[idx]]
-		    noise_label = [lab for lab in label if lab != true_label]
-		    trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
+			true_label = trainset.dataset.targets[train_index[idx]]
+			noise_label = [lab for lab in label if lab != true_label]
+			trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 	
 	Net = Wide_ResNet(args.depth, args.widen_factor, args.dropout, num_classes)
 	model_standard = Net().to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
 	
 	def learning_rate(epoch):
-	    optim_factor = 0
-	    if(epoch > 160):
-	        optim_factor = 3
-	    elif(epoch > 120):
-	        optim_factor = 2
-	    elif(epoch > 60):
-	        optim_factor = 1
+		optim_factor = 0
+		if(epoch > 160):
+			optim_factor = 3
+		elif(epoch > 120):
+			optim_factor = 2
+		elif(epoch > 60):
+			optim_factor = 1
 
-	    return args.lr*math.pow(0.2, optim_factor)
+		return args.lr*math.pow(0.2, optim_factor)
 
 	standard_train_loss = []
 	standard_train_accuracy = []
