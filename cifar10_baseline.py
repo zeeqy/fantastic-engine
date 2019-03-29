@@ -96,8 +96,8 @@ def main():
 		transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 	])
 
-	cifardata = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
-	testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=False, transform=transform_test)
+	cifardata = datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
+	testset = datasets.CIFAR10(root='../data', train=False, download=False, transform=transform_test)
 	num_classes = 10
 
 	testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
