@@ -100,7 +100,7 @@ def main():
 	testset = datasets.CIFAR10(root='../data', train=False, download=False, transform=transform_test)
 	num_classes = 10
 
-	testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+	test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
 	valid_index = np.random.choice(range(len(cifardata)), size=args.valid_size, replace=False).tolist()
 	train_index = np.delete(range(len(cifardata)), valid_index).tolist()
