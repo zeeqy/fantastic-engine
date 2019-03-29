@@ -118,7 +118,7 @@ def main():
 			noise_label = [lab for lab in label if lab != true_label]
 			trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 	
-	Net = Wide_ResNet(args.depth, args.widen_factor, args.dropout, num_classes)
+	Net = WideResNet(args.depth, num_classes, args.widen_factor, args.dropout)
 	model_standard = Net().to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
 	

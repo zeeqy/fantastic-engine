@@ -1,1 +1,1 @@
-from .wide_resnet import *
+from .wideresnet import *
