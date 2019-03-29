@@ -83,28 +83,17 @@ def forward_fn(model, device, api, forward_type, test_loader=None):
 def main():
 	# Training settings
 	parser = argparse.ArgumentParser(description='MNIST Baseline Reweight Comparison')
-	parser.add_argument('--batch_size', type=int, default=64, metavar='B',
-						help='input batch size for training (default: 64)')
-	parser.add_argument('--epochs', type=int, default=10, metavar='E',
-						help='number of epochs to train (default: 10)')
-	parser.add_argument('--burn_in', type=int, default=5, metavar='BN',
-						help='number of burn-in epochs (default: 5)')
-	parser.add_argument('--valid_size', type=int, default=1000, metavar='VS',
-						help='input validation size (default: 1000)')
-	parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-						help='learning rate (default: 0.01)')
-	parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
-						help='SGD momentum (default: 0.5)')
-	parser.add_argument('--noise_level', type=float, default=0.1, metavar='NL',
-						help='percentage of noise data (default: 0.1)')
-	parser.add_argument('--num_cluster', type=int, default=3, metavar='NC',
-						help='number of cluster (default: 3)')
-	parser.add_argument('--reweight_interval', type=int, default=1, metavar='RI',
-						help='number of epochs between reweighting')
-	parser.add_argument('--seed', type=int, default=1, metavar='S',
-						help='random seed (default: 1)')
-	parser.add_argument('--save_model', action='store_true', default=False,
-						help='For Saving the current Model')
+	parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
+	parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 10)')
+	parser.add_argument('--burn_in', type=int, default=5, help='number of burn-in epochs (default: 5)')
+	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
+	parser.add_argument('--lr', type=float, default=0.01, help='learning rate (default: 0.01)')
+	parser.add_argument('--momentum', type=float, default=0.5, help='SGD momentum (default: 0.5)')
+	parser.add_argument('--noise_level', type=float, default=0.1, help='percentage of noise data (default: 0.1)')
+	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
+	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
+	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
+	parser.add_argument('--save_model', action='store_true', default=False, help='For Saving the current Model')
 	
 	args = parser.parse_args()
 
@@ -232,7 +221,7 @@ def main():
 	
 	res.update({'timestamp': timestamp})
 
-	with open('mnist_experiments/mnist_cnn_baseline_response.data', 'a+') as f:
+	with open('mnist_experiments/mnist_cnn_baseline_reweight_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
 	f.close()
 

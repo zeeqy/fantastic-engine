@@ -29,7 +29,7 @@ def main():
 	args = parser.parse_args()
 	args_dict = vars(args)
 	
-	with open('mnist_experiments/mnist_cnn_baseline_response.data', 'r+') as f:
+	with open('mnist_experiments/mnist_cnn_baseline_reweight_response.data', 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
