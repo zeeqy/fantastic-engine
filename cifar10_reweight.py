@@ -75,6 +75,9 @@ def main():
 	parser.add_argument('--noise_level', type=float, default=0.1, help='percentage of noise data (default: 0.1)')
 	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
 	parser.add_argument('--dropout', default=0.3, type=float, help='dropout_rate')
+	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
+	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
+	parser.add_argument('--burn_in', type=int, default=5, help='number of burn-in epochs (default: 5)')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
 	
 	args = parser.parse_args()
@@ -118,52 +121,63 @@ def main():
 			noise_label = [lab for lab in label if lab != true_label]
 			trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 	
-	model_standard = WideResNet(args.depth, num_classes, args.widen_factor, args.dropout).to(device)
-	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+	model_reweight = WideResNet(args.depth, num_classes, args.widen_factor, args.dropout).to(device)
+	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
 
-	standard_train_loss = []
-	standard_train_accuracy = []
-	standard_valid_loss = []
-	standard_valid_accuracy = []
-	standard_test_loss = []
-	standard_test_accuracy = []
+	reweight_train_loss = []
+	reweight_train_accuracy = []
+	reweight_valid_loss = []
+	reweight_valid_accuracy = []
+	reweight_test_loss = []
+	reweight_test_accuracy = []
 
-	api = API(device=device, iprint=2)
+	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler_standard = torch.optim.lr_scheduler.MultiStepLR(optimizer_standard, milestones=[60,120,160], gamma=0.2)
+	scheduler_reweight = torch.optim.lr_scheduler.MultiStepLR(optimizer_reweight, milestones=[60,120,160], gamma=0.2)
+	epoch_reweight = []
 
 	for epoch in range(1, args.epochs + 1):
 
-		scheduler_standard.step()
-		train_fn(model_standard, device, optimizer_standard, api)
-		
-		loss, accuracy = forward_fn(model_standard, device, api, 'train')
-		standard_train_loss.append(loss)
-		standard_train_accuracy.append(accuracy)
-		
-		loss, accuracy = forward_fn(model_standard, device, api, 'validation')
-		standard_valid_loss.append(loss)
-		standard_valid_accuracy.append(accuracy)
+		scheduler_reweight.step()
+		train_fn(model_reweight, device, optimizer_reweight, api)
+		api.createTrajectory(model_reweight)
+		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
+			api.clusterTrajectory() 
+			api.reweightData(model_reweight, 1e6, noise_idx)
+			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
 
-		loss, accuracy = forward_fn(model_standard, device, api, 'test', test_loader)
-		standard_test_loss.append(loss)
-		standard_test_accuracy.append(accuracy)
+		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
+		reweight_train_loss.append(loss)
+		reweight_train_accuracy.append(accuracy)
+		
+		loss, accuracy = forward_fn(model_reweight, device, api, 'validation')
+		reweight_valid_loss.append(loss)
+		reweight_valid_accuracy.append(accuracy)
+
+		loss, accuracy = forward_fn(model_reweight, device, api, 'test', test_loader)
+		reweight_test_loss.append(loss)
+		reweight_test_accuracy.append(accuracy)
 
 
 	res = vars(args)
 	timestamp = int(time.time())
 
-	res.update({'standard_train_loss':standard_train_loss})
-	res.update({'standard_train_accuracy':standard_train_accuracy})
-	res.update({'standard_valid_loss':standard_valid_loss})
-	res.update({'standard_valid_accuracy':standard_valid_accuracy})
-	res.update({'standard_test_loss':standard_test_loss})
-	res.update({'standard_test_accuracy':standard_test_accuracy})
+	res.update({'reweight_train_loss':reweight_train_loss})
+	res.update({'reweight_train_accuracy':reweight_train_accuracy})
+	res.update({'reweight_valid_loss':reweight_valid_loss})
+	res.update({'reweight_valid_accuracy':reweight_valid_accuracy})
+	res.update({'reweight_test_loss':reweight_test_loss})
+	res.update({'reweight_test_accuracy':reweight_test_accuracy})
 	
 	res.update({'timestamp': timestamp})
 
-	with open('cifar10_experiments/cifar10_wildresnet_baseline_response.data', 'a+') as f:
+	with open('cifar10_experiments/cifar10_wildresnet_reweight_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
+	f.close()
+
+	with open('cifar10_experiments/weights/cifar10_wildresnet_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
+		for ws in epoch_reweight:
+			f.write(json.dumps(ws) + '\n')
 	f.close()
 
 if __name__ == '__main__':
