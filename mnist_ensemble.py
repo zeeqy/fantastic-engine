@@ -131,10 +131,16 @@ def main():
 		    noise_label = [lab for lab in label if lab != true_label]
 		    trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 
-	model_standard = Net().to(device)
+	model_standard = Net()
+	if torch.cuda.device_count() > 1:
+		model_standard = nn.DataParallel(model_standard)
+	model_standard.to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
 
-	model_reweight = Net().to(device)
+	model_reweight = Net()
+	if torch.cuda.device_count() > 1:
+		model_reweight = nn.DataParallel(model_reweight)
+	model_reweight.to(device)
 	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
 	
 	standard_train_loss = []
