@@ -118,7 +118,10 @@ def main():
 			noise_label = [lab for lab in label if lab != true_label]
 			trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 	
-	model_standard = WideResNet(args.depth, num_classes, args.widen_factor, args.dropout).to(device)
+	model_standard = WideResNet(args.depth, num_classes, args.widen_factor, args.dropout)
+	if torch.cuda.device_count() > 1:
+		model_standard = nn.DataParallel(model_standard)
+	model_standard.to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
 
 	standard_train_loss = []
