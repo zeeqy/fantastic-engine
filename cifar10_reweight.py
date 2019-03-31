@@ -171,11 +171,11 @@ def main():
 	
 	res.update({'timestamp': timestamp})
 
-	with open('cifar10_experiments/cifar10_wildresnet_reweight_response.data', 'a+') as f:
+	with open('cifar10_experiments/cifar10_wideresnet_reweight_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
 	f.close()
 
-	with open('cifar10_experiments/weights/cifar10_wildresnet_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
+	with open('cifar10_experiments/weights/cifar10_wideresnet_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
 		for ws in epoch_reweight:
 			f.write(json.dumps(ws) + '\n')
 	f.close()
