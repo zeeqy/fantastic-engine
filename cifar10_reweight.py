@@ -105,7 +105,12 @@ def main():
 
 	test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
-	valid_index = np.random.choice(range(len(cifardata)), size=args.valid_size, replace=False).tolist()
+	# Read same valid index for consistence
+	with open('cifar10_experiments/valid_index.data', 'r') as f:
+		valid_json = json.loads(f.read())
+	f.close()
+
+	valid_index = valid_json['valid_index']
 	train_index = np.delete(range(len(cifardata)), valid_index).tolist()
 	trainset = torch.utils.data.dataset.Subset(cifardata, train_index)
 	validset = torch.utils.data.dataset.Subset(cifardata, valid_index)
