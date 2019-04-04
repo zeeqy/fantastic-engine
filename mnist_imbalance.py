@@ -7,37 +7,9 @@ import argparse
 import numpy as np
 import json, time
 
+from networks import *
+
 from trajectoryPlugin.plugin import API
-
-class LeNet(nn.Module):
-    def __init__(self, n_out):
-        super(LeNet, self).__init__()
-    
-        layers = []
-        layers.append(MetaConv2d(1, 6, kernel_size=5))
-        layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.MaxPool2d(kernel_size=2,stride=2))
-
-        layers.append(MetaConv2d(6, 16, kernel_size=5))
-        layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.MaxPool2d(kernel_size=2,stride=2))
-        
-        layers.append(MetaConv2d(16, 120, kernel_size=5))
-        layers.append(nn.ReLU(inplace=True))
-        
-        self.main = nn.Sequential(*layers)
-        
-        layers = []
-        layers.append(MetaLinear(120, 84))
-        layers.append(nn.ReLU(inplace=True))
-        layers.append(MetaLinear(84, n_out))
-        
-        self.fc_layers = nn.Sequential(*layers)
-        
-    def forward(self, x):
-        x = self.main(x)
-        x = x.view(-1, 120)
-        return self.fc_layers(x).squeeze()
 
 def train_fn(model, device, optimizer, api):
 	model.train()
