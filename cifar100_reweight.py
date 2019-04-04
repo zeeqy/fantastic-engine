@@ -65,18 +65,20 @@ def forward_fn(model, device, api, forward_type, test_loader=None):
 
 def main():
 	# Training settings
-	parser = argparse.ArgumentParser(description='MNIST Baseline Reweight Comparison')
-	parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
-	parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 10)')
-	parser.add_argument('--burn_in', type=int, default=5, help='number of burn-in epochs (default: 5)')
-	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
-	parser.add_argument('--lr', type=float, default=0.01, help='learning rate (default: 0.01)')
+	parser = argparse.ArgumentParser(description='PyTorch CIFAR-100 Reweight Training')
+	parser.add_argument('--lr', default=0.1, type=float, help='learning_rate')
+	parser.add_argument('--batch_size', type=int, default=128, help='input batch size for training (default: 128)')
+	parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train (default: 10)')
+	parser.add_argument('--depth', default=28, type=int, help='depth of model')
+	parser.add_argument('--widen_factor', default=10, type=int, help='width of model')
 	parser.add_argument('--momentum', type=float, default=0.5, help='SGD momentum (default: 0.5)')
-	parser.add_argument('--imbalance_rate', type=float, default=0, help='percentage of imbalance (default: 0.1)')
+	parser.add_argument('--noise_level', type=float, default=0.1, help='percentage of noise data (default: 0.1)')
+	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
+	parser.add_argument('--dropout', default=0.3, type=float, help='dropout_rate')
 	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
 	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
+	parser.add_argument('--burn_in', type=int, default=5, help='number of burn-in epochs (default: 5)')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
-	parser.add_argument('--save_model', action='store_true', default=False, help='For Saving the current Model')
 	
 	args = parser.parse_args()
 
@@ -85,52 +87,52 @@ def main():
 
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	mnistdata = datasets.MNIST('../data', train=True, download=True,
-				 transform=transforms.Compose([
-					 transforms.ToTensor(),
-					 transforms.Normalize((0.1307,), (0.3081,))
-				 ]))
+	transform_train = transforms.Compose([
+		transforms.RandomCrop(32, padding=4),
+		transforms.RandomHorizontalFlip(),
+		transforms.ToTensor(),
+		transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+	])
 
-	testdata = datasets.MNIST('../data', train=False, transform=transforms.Compose([
-					transforms.ToTensor(),
-					transforms.Normalize((0.1307,), (0.3081,))
-				]))
-	test_49 = [i for i, e in enumerate(testdata.targets) if e == 4 or e == 9]
-	testset = torch.utils.data.dataset.Subset(testdata, test_49)
-	test_loader =  torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
+	transform_test = transforms.Compose([
+		transforms.ToTensor(),
+		transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+	])
 
-	mnist_4 = [i for i, e in enumerate(mnistdata.targets) if e == 4]
-	mnist_9 = [i for i, e in enumerate(mnistdata.targets) if e == 9]
+	cifardata = datasets.CIFAR100(root='../data', train=True, download=True, transform=None)
+	testset = datasets.CIFAR100(root='../data', train=False, download=False, transform=transform_test)
+	num_classes = 10
 
-	valid_mnist_4 = np.random.choice(mnist_4, size=args.valid_size//2, replace=False).tolist()
-	valid_mnist_9 = np.random.choice(mnist_9, size=args.valid_size//2, replace=False).tolist()
-	valid_index = valid_mnist_9 + valid_mnist_4
+	test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
-	mnist_4 = np.delete(mnist_4, valid_mnist_4).tolist()
-	mnist_9 = np.delete(mnist_9, valid_mnist_9).tolist()
-	mnist_4 = np.random.choice(mnist_4, size=int(args.imbalance_rate * len(mnist_9)), replace=False).tolist()
+	# Read same valid index for consistence
+	with open('cifar_experiments/cifar100_valid_index.data', 'r') as f:
+		valid_json = json.loads(f.read())
+	f.close()
 
-	trainset = torch.utils.data.dataset.Subset(mnistdata, mnist_4 + mnist_9)
-	validset = torch.utils.data.dataset.Subset(mnistdata, valid_index)
+	valid_index = valid_json['valid_index']
+	train_index = np.delete(range(len(cifardata)), valid_index).tolist()
+	trainset = torch.utils.data.dataset.Subset(cifardata, train_index)
+	trainset.dataset.transform = transform_train
+	validset = torch.utils.data.dataset.Subset(cifardata, valid_index)
+	validset.dataset.transform = transform_test
 
-	model_standard = LeNet()
-	if torch.cuda.device_count() > 1:
-		model_standard = nn.DataParallel(model_standard)
-	model_standard.to(device)
-	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
-
-	model_reweight = LeNet()
+	#nosiy data
+	if args.noise_level == 0:
+		noise_idx = []
+	else:
+		noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)*args.noise_level), replace=False)
+		label = range(10)
+		for idx in noise_idx:
+			true_label = trainset.dataset.targets[train_index[idx]]
+			noise_label = [lab for lab in label if lab != true_label]
+			trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
+	
+	model_reweight = WideResNet(args.depth, num_classes, args.widen_factor, args.dropout)
 	if torch.cuda.device_count() > 1:
 		model_reweight = nn.DataParallel(model_reweight)
 	model_reweight.to(device)
-	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
-	
-	standard_train_loss = []
-	standard_train_accuracy = []
-	standard_valid_loss = []
-	standard_valid_accuracy = []
-	standard_test_loss = []
-	standard_test_accuracy = []
+	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
 
 	reweight_train_loss = []
 	reweight_train_accuracy = []
@@ -141,28 +143,7 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
-
-	for epoch in range(1, args.epochs + 1):
-
-		scheduler_standard.step()
-		train_fn(model_standard, device, optimizer_standard, api)
-		
-		loss, accuracy = forward_fn(model_standard, device, api, 'train')
-		standard_train_loss.append(loss)
-		standard_train_accuracy.append(accuracy)
-		
-		loss, accuracy = forward_fn(model_standard, device, api, 'validation')
-		standard_valid_loss.append(loss)
-		standard_valid_accuracy.append(accuracy)
-
-		loss, accuracy = forward_fn(model_standard, device, api, 'test', test_loader)
-		standard_test_loss.append(loss)
-		standard_test_accuracy.append(accuracy)
-
-	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
-	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
+	scheduler_reweight = torch.optim.lr_scheduler.MultiStepLR(optimizer_reweight, milestones=[60,120,160], gamma=0.2)
 	epoch_reweight = []
 
 	for epoch in range(1, args.epochs + 1):
@@ -172,7 +153,7 @@ def main():
 		api.createTrajectory(model_reweight)
 		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
 			api.clusterTrajectory() 
-			api.reweightData(model_reweight, 1e6)
+			api.reweightData(model_reweight, 1e6, noise_idx)
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
 
 		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
@@ -187,18 +168,9 @@ def main():
 		reweight_test_loss.append(loss)
 		reweight_test_accuracy.append(accuracy)
 
-	if (args.save_model):
-		torch.save(model.state_dict(),"mnist_imbalance_baseline_reweight.pt")
 
 	res = vars(args)
 	timestamp = int(time.time())
-
-	res.update({'standard_train_loss':standard_train_loss})
-	res.update({'standard_train_accuracy':standard_train_accuracy})
-	res.update({'standard_valid_loss':standard_valid_loss})
-	res.update({'standard_valid_accuracy':standard_valid_accuracy})
-	res.update({'standard_test_loss':standard_test_loss})
-	res.update({'standard_test_accuracy':standard_test_accuracy})
 
 	res.update({'reweight_train_loss':reweight_train_loss})
 	res.update({'reweight_train_accuracy':reweight_train_accuracy})
@@ -209,11 +181,11 @@ def main():
 	
 	res.update({'timestamp': timestamp})
 
-	with open('mnist_experiments/mnist_imbalance_baseline_reweight_response.data', 'a+') as f:
+	with open('cifar_experiments/cifar100_wideresnet_reweight_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
 	f.close()
 
-	with open('mnist_experiments/weights/mnist_imbalance_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
+	with open('cifar_experiments/weights/cifar100_wideresnet_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
 		for ws in epoch_reweight:
 			f.write(json.dumps(ws) + '\n')
 	f.close()

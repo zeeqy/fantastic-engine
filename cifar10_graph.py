@@ -22,7 +22,7 @@ def main():
 	args = parser.parse_args()
 	args_dict = vars(args)
 	
-	with open('cifar10_experiments/cifar10_wideresnet_baseline_response.data', 'r+') as f:
+	with open('cifar_experiments/cifar10_wideresnet_baseline_response.data', 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
@@ -49,7 +49,7 @@ def main():
 		res_1 = res_1[0]
 
 
-	with open('cifar10_experiments/cifar10_wideresnet_reweight_response.data', 'r+') as f:
+	with open('cifar_experiments/cifar10_wideresnet_reweight_response.data', 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
@@ -120,7 +120,7 @@ def main():
 	
 	plt.savefig('figures/loss_accuracy_{}.pdf'.format(res_1['timestamp']), format='pdf', dpi=1000)
 
-	with open('cifar10_experiments/weights/cifar10_wideresnet_baseline_reweight_{}.data'.format(res_2['timestamp']), 'r+') as f:
+	with open('cifar_experiments/weights/cifar10_wideresnet_baseline_reweight_{}.data'.format(res_2['timestamp']), 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	

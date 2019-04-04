@@ -190,7 +190,7 @@ def main():
 		reweight_test_accuracy.append(accuracy)
 
 	if (args.save_model):
-		torch.save(model.state_dict(),"mnist_cnn_baseline.pt")
+		torch.save(model.state_dict(),"mnist_cnn_ensemble.pt")
 
 	res = vars(args)
 	timestamp = int(time.time())

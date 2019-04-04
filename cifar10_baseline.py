@@ -96,7 +96,7 @@ def main():
 		transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 	])
 
-	cifardata = datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
+	cifardata = datasets.CIFAR10(root='../data', train=True, download=True, transform=None)
 	testset = datasets.CIFAR10(root='../data', train=False, download=False, transform=transform_test)
 	num_classes = 10
 
@@ -106,13 +106,15 @@ def main():
 	
 	# Save valid index for consistence
 	timestamp = int(time.time())
-	with open('cifar10_experiments/valid_index.data', 'w+') as f:
+	with open('cifar_experiments/cifar10_valid_index.data', 'w+') as f:
 		f.write(json.dumps({"timestamp":timestamp,"valid_index":valid_index}))
 	f.close()
 
 	train_index = np.delete(range(len(cifardata)), valid_index).tolist()
 	trainset = torch.utils.data.dataset.Subset(cifardata, train_index)
+	trainset.dataset.transform = transform_train
 	validset = torch.utils.data.dataset.Subset(cifardata, valid_index)
+	validset.dataset.transform = transform_test
 
 	#nosiy data
 	if args.noise_level == 0:
@@ -172,7 +174,7 @@ def main():
 	
 	res.update({'timestamp': timestamp})
 
-	with open('cifar10_experiments/cifar10_wideresnet_baseline_response.data', 'a+') as f:
+	with open('cifar_experiments/cifar10_wideresnet_baseline_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
 	f.close()
 
