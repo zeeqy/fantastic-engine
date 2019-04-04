@@ -11,7 +11,7 @@ def main():
 	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
 	parser.add_argument('--lr', type=float, default=0.01, help='learning rate (default: 0.01)')
 	parser.add_argument('--momentum', type=float, default=0.5, help='SGD momentum (default: 0.5)')
-	parser.add_argument('--noise_level', type=float, default=0, help='percentage of noise data (default: 0.0)')
+	parser.add_argument('--imbalance_rate', type=float, default=0, help='percentage of imbalance (default: 0.0)')
 	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
 	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
@@ -19,7 +19,7 @@ def main():
 	args = parser.parse_args()
 	args_dict = vars(args)
 	
-	with open('mnist_experiments/mnist_cnn_baseline_reweight_response.data', 'r+') as f:
+	with open('mnist_experiments/mnist_imbalance_baseline_reweight_response.data', 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
@@ -84,7 +84,7 @@ def main():
 	
 	plt.savefig('figures/loss_accuracy_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 
-	with open('mnist_experiments/weights/mnist_cnn_baseline_reweight_{}.data'.format(res['timestamp']), 'r+') as f:
+	with open('mnist_experiments/weights/mnist_imbalance_baseline_reweight_{}.data'.format(res['timestamp']), 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
