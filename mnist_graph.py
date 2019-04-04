@@ -11,7 +11,7 @@ def main():
 	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
 	parser.add_argument('--lr', type=float, default=0.01, help='learning rate (default: 0.01)')
 	parser.add_argument('--momentum', type=float, default=0.5, help='SGD momentum (default: 0.5)')
-	parser.add_argument('--noise_level', type=float, default=0.1, help='percentage of noise data (default: 0.1)')
+	parser.add_argument('--noise_level', type=float, default=0, help='percentage of noise data (default: 0.1)')
 	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
 	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')

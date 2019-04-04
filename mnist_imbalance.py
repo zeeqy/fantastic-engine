@@ -89,7 +89,7 @@ def main():
 	parser.add_argument('--valid_size', type=int, default=1000, help='input validation size (default: 1000)')
 	parser.add_argument('--lr', type=float, default=0.01, help='learning rate (default: 0.01)')
 	parser.add_argument('--momentum', type=float, default=0.5, help='SGD momentum (default: 0.5)')
-	parser.add_argument('--noise_level', type=float, default=0.1, help='percentage of noise data (default: 0.1)')
+	parser.add_argument('--imbalance_rate', type=float, default=0, help='percentage of imbalance (default: 0.1)')
 	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
 	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
@@ -108,28 +108,27 @@ def main():
 					 transforms.Normalize((0.1307,), (0.3081,))
 				 ]))
 
-	test_loader = torch.utils.data.DataLoader(
-		datasets.MNIST('../data', train=False, transform=transforms.Compose([
-						   transforms.ToTensor(),
-						   transforms.Normalize((0.1307,), (0.3081,))
-					   ])),
-		batch_size=args.batch_size, shuffle=True)
+	testdata = datasets.MNIST('../data', train=False, transform=transforms.Compose([
+					transforms.ToTensor(),
+					transforms.Normalize((0.1307,), (0.3081,))
+				]))
+	test_49 = [i for i, e in enumerate(testdata.targets) if e == 4 or e == 9]
+	testset = torch.utils.data.dataset.Subset(testdata, test_49)
+	test_loader =  torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
 
-	valid_index = np.random.choice(range(len(mnistdata)), size=args.valid_size, replace=False).tolist()
-	train_index = np.delete(range(len(mnistdata)), valid_index).tolist()
-	trainset = torch.utils.data.dataset.Subset(mnistdata, train_index)
+	mnist_4 = [i for i, e in enumerate(mnistdata.targets) if e == 4]
+	mnist_9 = [i for i, e in enumerate(mnistdata.targets) if e == 9]
+
+	valid_mnist_4 = np.random.choice(mnist_4, size=args.valid_size//2, replace=False).tolist()
+	valid_mnist_9 = np.random.choice(mnist_9, size=args.valid_size//2, replace=False).tolist()
+	valid_index = valid_mnist_9 + valid_mnist_4
+
+	mnist_4 = np.delete(mnist_4, valid_mnist_4).tolist()
+	mnist_9 = np.delete(mnist_9, valid_mnist_9).tolist()
+	mnist_4 = np.random.choice(mnist_4, size=int(args.imbalance_rate * len(mnist_9)), replace=False).tolist()
+
+	trainset = torch.utils.data.dataset.Subset(mnistdata, mnist_4 + mnist_9)
 	validset = torch.utils.data.dataset.Subset(mnistdata, valid_index)
-
-	#nosiy data
-	if args.noise_level == 0:
-		noise_idx = []
-	else:
-		noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)*args.noise_level), replace=False)
-		label = range(10)
-		for idx in noise_idx:
-		    true_label = trainset.dataset.targets[train_index[idx]]
-		    noise_label = [lab for lab in label if lab != true_label]
-		    trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 
 	model_standard = Net()
 	if torch.cuda.device_count() > 1:
@@ -190,7 +189,7 @@ def main():
 		api.createTrajectory(model_reweight)
 		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
 			api.clusterTrajectory() 
-			api.reweightData(model_reweight, 1e6, noise_idx)
+			api.reweightData(model_reweight, 1e6)
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
 
 		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
@@ -227,11 +226,11 @@ def main():
 	
 	res.update({'timestamp': timestamp})
 
-	with open('mnist_experiments/mnist_cnn_baseline_reweight_response.data', 'a+') as f:
+	with open('mnist_experiments/mnist_imbalance_baseline_reweight_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
 	f.close()
 
-	with open('mnist_experiments/weights/mnist_cnn_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
+	with open('mnist_experiments/weights/mnist_imbalance_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
 		for ws in epoch_reweight:
 			f.write(json.dumps(ws) + '\n')
 	f.close()
