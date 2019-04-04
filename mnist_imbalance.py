@@ -9,24 +9,35 @@ import json, time
 
 from trajectoryPlugin.plugin import API
 
+class LeNet(nn.Module):
+    def __init__(self, n_out):
+        super(LeNet, self).__init__()
+    
+        layers = []
+        layers.append(MetaConv2d(1, 6, kernel_size=5))
+        layers.append(nn.ReLU(inplace=True))
+        layers.append(nn.MaxPool2d(kernel_size=2,stride=2))
 
-class Net(nn.Module):
-	def __init__(self):
-		super(Net, self).__init__()
-		self.conv1 = nn.Conv2d(1, 20, 5, 1)
-		self.conv2 = nn.Conv2d(20, 50, 5, 1)
-		self.fc1 = nn.Linear(4*4*50, 500)
-		self.fc2 = nn.Linear(500, 10)
-
-	def forward(self, x):
-		x = F.relu(self.conv1(x))
-		x = F.max_pool2d(x, 2, 2)
-		x = F.relu(self.conv2(x))
-		x = F.max_pool2d(x, 2, 2)
-		x = x.view(-1, 4*4*50)
-		x = F.relu(self.fc1(x))
-		x = self.fc2(x)
-		return F.log_softmax(x, dim=1)
+        layers.append(MetaConv2d(6, 16, kernel_size=5))
+        layers.append(nn.ReLU(inplace=True))
+        layers.append(nn.MaxPool2d(kernel_size=2,stride=2))
+        
+        layers.append(MetaConv2d(16, 120, kernel_size=5))
+        layers.append(nn.ReLU(inplace=True))
+        
+        self.main = nn.Sequential(*layers)
+        
+        layers = []
+        layers.append(MetaLinear(120, 84))
+        layers.append(nn.ReLU(inplace=True))
+        layers.append(MetaLinear(84, n_out))
+        
+        self.fc_layers = nn.Sequential(*layers)
+        
+    def forward(self, x):
+        x = self.main(x)
+        x = x.view(-1, 120)
+        return self.fc_layers(x).squeeze()
 
 def train_fn(model, device, optimizer, api):
 	model.train()
@@ -130,13 +141,13 @@ def main():
 	trainset = torch.utils.data.dataset.Subset(mnistdata, mnist_4 + mnist_9)
 	validset = torch.utils.data.dataset.Subset(mnistdata, valid_index)
 
-	model_standard = Net()
+	model_standard = LeNet()
 	if torch.cuda.device_count() > 1:
 		model_standard = nn.DataParallel(model_standard)
 	model_standard.to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
 
-	model_reweight = Net()
+	model_reweight = LeNet()
 	if torch.cuda.device_count() > 1:
 		model_reweight = nn.DataParallel(model_reweight)
 	model_reweight.to(device)
