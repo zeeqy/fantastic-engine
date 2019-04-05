@@ -103,7 +103,7 @@ def main():
 
 	cifardata = datasets.CIFAR100(root='../data', train=True, download=True, transform=None)
 	testset = datasets.CIFAR100(root='../data', train=False, download=False, transform=transform_test)
-	num_classes = 10
+	num_classes = 100
 
 	test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
