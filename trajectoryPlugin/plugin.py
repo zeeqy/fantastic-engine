@@ -36,7 +36,7 @@ class WeightedCrossEntropyLoss(nn.Module):
 		return loss
 
 class RandomBatchSampler(torch.utils.data.sampler.Sampler):
-	def __init__(self, shuffle,batch_size):
+	def __init__(self, shuffle, batch_size):
 		self.batch_size = batch_size
 		self.shuffle = shuffle
 
@@ -45,17 +45,7 @@ class RandomBatchSampler(torch.utils.data.sampler.Sampler):
 		return data_iter
 
 	def __len__(self):
-		return len(sum(self.shuffle,[]))//self.batch_size
-
-class ConcatDataset(torch.utils.data.Dataset):
-	def __init__(self, *datasets):
-		self.datasets = datasets
-
-	def __getitem__(self, i):
-		return tuple(d[i] for d in self.datasets)
-
-	def __len__(self):
-		return min(len(d) for d in self.datasets)
+		return (len(sum(self.shuffle,[])) + self.batch_size - 1)//self.batch_size
 
 class API:
 	"""
@@ -78,14 +68,12 @@ class API:
 	def _generateTrainLoader(self):
 		self.rand_idx = self._shuffleIndex()
 		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
-		self.weightset = Data.TensorDataset(self.weight_tensor)
-		self.train_loader = Data.DataLoader(self.train_dataset, batch_sampler=self.batch_sampler)
+		self.train_loader = Data.DataLoader(self.train_dataset, batch_sampler=self.batch_sampler, shuffle=False)
 
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
 		self.train_dataset = trainset
-		self.valid_dataset = validset
-		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.batch_size,shuffle=True)
+		self.valid_loader = Data.DataLoader(valid_dataset, batch_size=self.batch_size, shuffle=True)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
 		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
 		self._generateTrainLoader()
@@ -142,7 +130,8 @@ class API:
 				continue
 			sample_size = min(int(size), num_sample)
 			sample_idx = [cidx[i] for i in np.random.choice(range(size), sample_size, replace=False).tolist()]
-			subset_loader = torch.utils.data.DataLoader(Data.Subset(self.train_dataset, sample_idx), batch_size=self.batch_size, shuffle=False)
+			subset_sampler = torch.utils.data.sampler.SubsetRandomSampler(sample_idx)
+			subset_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=self.batch_size, sampler=subset_sampler, shuffle=False)
 
 			validNet.eval() # eval mode, important!
 			validNet.zero_grad()

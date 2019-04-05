@@ -84,25 +84,29 @@ def main():
 	
 	plt.savefig('figures/loss_accuracy_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 
-	with open('mnist_experiments/weights/mnist_cnn_baseline_reweight_{}.data'.format(res['timestamp']), 'r+') as f:
-		rec = f.read().split('\n')[:-1]
-	f.close()
+	try:
+		with open('mnist_experiments/weights/mnist_cnn_baseline_reweight_{}.data'.format(res['timestamp']), 'r+') as f:
+			rec = f.read().split('\n')[:-1]
+		f.close()
+		
+		grid = int(np.ceil(np.sqrt(len(rec))))
+		fig, axs = plt.subplots(grid,grid, figsize=(20, 10))
+		i = 0
+		j = 0
+		for item in rec:
+			item_dict = json.loads(item)
+			axs[i,j].hist(item_dict['weight_tensor'],bins=10, range=(0,1.5))
+			axs[i,j].set_title("Weights Distirbution at {} epoch".format(item_dict['epoch']))
+			if j < grid-1:
+				j += 1
+			else:
+				i += 1
+				j = 0
+		plt.tight_layout()
+		plt.savefig('figures/weights_distribution_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 	
-	grid = int(np.ceil(np.sqrt(len(rec))))
-	fig, axs = plt.subplots(grid,grid, figsize=(20, 10))
-	i = 0
-	j = 0
-	for item in rec:
-		item_dict = json.loads(item)
-		axs[i,j].hist(item_dict['weight_tensor'],bins=10, range=(0,1.5))
-		axs[i,j].set_title("Weights Distirbution at {} epoch".format(item_dict['epoch']))
-		if j < grid-1:
-			j += 1
-		else:
-			i += 1
-			j = 0
-	plt.tight_layout()
-	plt.savefig('figures/weights_distribution_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
+	except:
+		print("weights data didn't found, only create loss graph.")
 	
 if __name__ == '__main__':
 	main()
