@@ -73,7 +73,7 @@ class API:
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
 		self.train_dataset = trainset
-		self.valid_loader = Data.DataLoader(valid_dataset, batch_size=self.batch_size, shuffle=True)
+		self.valid_loader = Data.DataLoader(validset, batch_size=self.batch_size, shuffle=True)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
 		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
 		self._generateTrainLoader()
