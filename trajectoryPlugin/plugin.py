@@ -48,16 +48,6 @@ class RandomBatchSampler(torch.utils.data.sampler.Sampler):
 	def __len__(self):
 		return len(sum(self.shuffle,[]))//self.batch_size
 
-class ConcatDataset(torch.utils.data.Dataset):
-	def __init__(self, *datasets):
-		self.datasets = datasets
-
-	def __getitem__(self, i):
-		return tuple(d[i] for d in self.datasets)
-
-	def __len__(self):
-		return min(len(d) for d in self.datasets)
-
 class API:
 	"""
 	This API will take care of recording trajectory, clustering trajectory and reweigting dataset
@@ -86,13 +76,7 @@ class API:
 	def _generateTrainLoader(self):
 		self.rand_idx = self._shuffleIndex()
 		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
-		self.weightset = Data.TensorDataset(self.weight_tensor)
-		self.train_loader = Data.DataLoader(
-			ConcatDataset(
-				self.train_dataset,
-				self.weightset
-			),
-			batch_sampler=self.batch_sampler, collate_fn=self._collateFn)
+		self.train_loader = Data.DataLoader(self.train_dataset, batch_sampler=self.batch_sampler)
 
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
@@ -123,7 +107,7 @@ class API:
 		torchnn.eval()
 		with torch.no_grad():
 			prob_output = np.empty(self.train_dataset.__len__())
-			for step, (data, target, weight) in enumerate(self.train_loader):
+			for step, (data, target) in enumerate(self.train_loader):
 				data = data.to(self.device)
 				output = torchnn(data).data.cpu().numpy().tolist()
 				prob_output[self.rand_idx[step]] = self._correctProb(output, target.data.cpu().numpy())
@@ -199,7 +183,6 @@ class API:
 		self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
 		self.gmmCluster.fit(self.traject_matrix)
 		self.cluster_output = self.gmmCluster.predict(self.traject_matrix, prob=False)
-
 
 	def _specialRatio(self, cidx, special_index):
 		spe = set(cidx) - (set(cidx) - set(special_index))
