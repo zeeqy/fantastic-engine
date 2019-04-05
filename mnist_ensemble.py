@@ -14,9 +14,8 @@ from trajectoryPlugin.plugin import API
 
 def train_fn(model, device, optimizer, api):
 	model.train()
-	for batch_idx, (data, target) in enumerate(api.train_loader):
-		data, target = data.to(device), target.to(device)
-		weight = api.weight_tensor[api.rand_idx[batch_idx]].to(device)
+	for batch_idx, (data, target, weight) in enumerate(api.train_loader):
+		data, target, weight = data.to(device), target.to(device), weight.to(device)
 		optimizer.zero_grad()
 		output = model(data)
 		loss = api.loss_func(output, target, weight, 'mean')
@@ -41,9 +40,8 @@ def forward_fn(model, device, api, forward_type, test_loader=None):
 	
 	elif forward_type == 'train':
 		with torch.no_grad():
-			for batch_idx, (data, target) in enumerate(api.train_loader): 
-				data, target = data.to(device), target.to(device)
-				weight = api.weight_tensor[api.rand_idx[batch_idx]].to(device)
+			for batch_idx, (data, target, weight) in enumerate(api.train_loader):
+				data, target, weight = data.to(device), target.to(device), weight.to(device)
 				output = model(data)
 				loss += api.loss_func(output, target, weight, 'sum').item() # sum up batch loss
 				pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
@@ -164,6 +162,8 @@ def main():
 		standard_test_loss.append(loss)
 		standard_test_accuracy.append(accuracy)
 
+		api.generateTrainLoader()
+
 	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
 	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
@@ -190,6 +190,8 @@ def main():
 		loss, accuracy = forward_fn(model_reweight, device, api, 'test', test_loader)
 		reweight_test_loss.append(loss)
 		reweight_test_accuracy.append(accuracy)
+
+		api.generateTrainLoader()
 
 	if (args.save_model):
 		torch.save(model.state_dict(),"mnist_cnn_ensemble.pt")
