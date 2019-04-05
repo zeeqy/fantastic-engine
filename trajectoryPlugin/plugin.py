@@ -4,26 +4,11 @@ import torch.utils.data as Data
 import torchvision
 import numpy as np
 from trajectoryPlugin.gmm import GaussianMixture
-from trajectoryPlugin.collate import default_collate as core_collate
 from scipy import spatial
 import sys, logging
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
-class DatasetWrapper(torch.utils.data.Dataset):
-	def __init__(self, dataset):
-		self.dataset = dataset
-
-	def __getitem__(self, index):
-		data, target = self.dataset[index]
-
-		return data, target, index
-
-	def __len__(self):
-		return len(self.dataset)
-
 
 
 class WeightedCrossEntropyLoss(nn.Module):
@@ -62,6 +47,16 @@ class RandomBatchSampler(torch.utils.data.sampler.Sampler):
 	def __len__(self):
 		return len(sum(self.shuffle,[]))//self.batch_size
 
+class ConcatDataset(torch.utils.data.Dataset):
+	def __init__(self, *datasets):
+		self.datasets = datasets
+
+	def __getitem__(self, i):
+		return tuple(d[i] for d in self.datasets)
+
+	def __len__(self):
+		return min(len(d) for d in self.datasets)
+
 class API:
 	"""
 	This API will take care of recording trajectory, clustering trajectory and reweigting dataset
@@ -76,25 +71,19 @@ class API:
 		self.logger = logging.getLogger(__name__)
 		self.iprint = iprint #output level
 
-	def _collateFn(self, batch):
-		transposed = zip(*batch)
-		res = []
-		for samples in transposed:
-			res += core_collate(samples)
-		return res
-
 	def _shuffleIndex(self):
 		rand_idx = torch.randperm(self.train_dataset.__len__()).tolist()
 		return [rand_idx[i:i+self.batch_size] for i in range(0, len(rand_idx), self.batch_size)]
 
 	def _generateTrainLoader(self):
-		#self.rand_idx = self._shuffleIndex()
-		#self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
-		self.train_loader = Data.DataLoader(self.train_dataset, batch_size=self.batch_size,shuffle=True)
+		self.rand_idx = self._shuffleIndex()
+		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
+		self.weightset = Data.TensorDataset(self.weight_tensor)
+		self.train_loader = Data.DataLoader(self.train_dataset, batch_sampler=self.batch_sampler)
 
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
-		self.train_dataset = DatasetWrapper(trainset)
+		self.train_dataset = trainset
 		self.valid_dataset = validset
 		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.batch_size,shuffle=True)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
@@ -121,10 +110,10 @@ class API:
 		torchnn.eval()
 		with torch.no_grad():
 			prob_output = np.empty(self.train_dataset.__len__())
-			for step, (data, target, idx) in enumerate(self.train_loader):
+			for step, (data, target) in enumerate(self.train_loader):
 				data = data.to(self.device)
 				output = torchnn(data).data.cpu().numpy().tolist()
-				prob_output[idx] = self._correctProb(output, target.data.cpu().numpy())
+				prob_output[self.rand_idx[step]] = self._correctProb(output, target.data.cpu().numpy())
 			self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
 
 	def _validGrad(self, validNet):
@@ -157,7 +146,7 @@ class API:
 
 			validNet.eval() # eval mode, important!
 			validNet.zero_grad()
-			for step, (data, target, idx) in enumerate(subset_loader):
+			for step, (data, target) in enumerate(subset_loader):
 				data, target = data.to(self.device), target.to(self.device)
 				subset_output = validNet(data)
 				subset_loss = self.loss_func(subset_output, target, None)
@@ -190,13 +179,14 @@ class API:
 		self.weight_tensor = norm_fact * self.weight_tensor
 		
 		#refresh train_loader
-		#self._generateTrainLoader()
+		self._generateTrainLoader()
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
 		self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
 		self.gmmCluster.fit(self.traject_matrix)
 		self.cluster_output = self.gmmCluster.predict(self.traject_matrix, prob=False)
+
 
 	def _specialRatio(self, cidx, special_index):
 		spe = set(cidx) - (set(cidx) - set(special_index))
