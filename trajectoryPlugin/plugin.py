@@ -12,6 +12,20 @@ import sys, logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+class DatasetWrapper(Dataset):
+	def __init__(self, dataset):
+		self.dataset = dataset
+
+	def __getitem__(self, index):
+		data, target = self.dataset[index]
+
+		return data, target, index
+
+	def __len__(self):
+		return len(self.dataset)
+
+
+
 class WeightedCrossEntropyLoss(nn.Module):
 	"""
 	Cross entropy with instance-wise weights. Leave `aggregate` to None to obtain a loss
@@ -80,7 +94,7 @@ class API:
 
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
-		self.train_dataset = trainset
+		self.train_dataset = DatasetWrapper(trainset)
 		self.valid_dataset = validset
 		self.valid_loader = Data.DataLoader(self.valid_dataset, batch_size=self.batch_size,shuffle=True)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
