@@ -12,7 +12,7 @@ import sys, logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class DatasetWrapper(Dataset):
+class DatasetWrapper(torch.utils.data.Dataset):
 	def __init__(self, dataset):
 		self.dataset = dataset
 
@@ -88,9 +88,9 @@ class API:
 		return [rand_idx[i:i+self.batch_size] for i in range(0, len(rand_idx), self.batch_size)]
 
 	def _generateTrainLoader(self):
-		self.rand_idx = self._shuffleIndex()
-		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
-		self.train_loader = Data.DataLoader(self.train_dataset, batch_sampler=self.batch_sampler)
+		#self.rand_idx = self._shuffleIndex()
+		#self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
+		self.train_loader = Data.DataLoader(self.train_dataset, batch_size=self.batch_size,shuffle=True)
 
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
@@ -121,10 +121,10 @@ class API:
 		torchnn.eval()
 		with torch.no_grad():
 			prob_output = np.empty(self.train_dataset.__len__())
-			for step, (data, target) in enumerate(self.train_loader):
+			for step, (data, target, idx) in enumerate(self.train_loader):
 				data = data.to(self.device)
 				output = torchnn(data).data.cpu().numpy().tolist()
-				prob_output[self.rand_idx[step]] = self._correctProb(output, target.data.cpu().numpy())
+				prob_output[idx] = self._correctProb(output, target.data.cpu().numpy())
 			self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
 
 	def _validGrad(self, validNet):
@@ -157,7 +157,7 @@ class API:
 
 			validNet.eval() # eval mode, important!
 			validNet.zero_grad()
-			for step, (data, target) in enumerate(subset_loader):
+			for step, (data, target, idx) in enumerate(subset_loader):
 				data, target = data.to(self.device), target.to(self.device)
 				subset_output = validNet(data)
 				subset_loss = self.loss_func(subset_output, target, None)
@@ -190,7 +190,7 @@ class API:
 		self.weight_tensor = norm_fact * self.weight_tensor
 		
 		#refresh train_loader
-		self._generateTrainLoader()
+		#self._generateTrainLoader()
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
