@@ -18,11 +18,12 @@ def main():
 	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
 	parser.add_argument('--burn_in', type=int, default=5, help='number of burn-in epochs (default: 5)')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
+	parser.add_argument('--cifar', type=int, default=10, help='which cifar is this?')
 
 	args = parser.parse_args()
 	args_dict = vars(args)
 	
-	with open('cifar_experiments/cifar10_wideresnet_baseline_response.data', 'r+') as f:
+	with open('cifar_experiments/cifar{}_wideresnet_baseline_response.data'.format(args.cifar), 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
@@ -49,7 +50,7 @@ def main():
 		res_1 = res_1[0]
 
 
-	with open('cifar_experiments/cifar10_wideresnet_reweight_response.data', 'r+') as f:
+	with open('cifar_experiments/cifar{}_wideresnet_reweight_response.data'.format(args.cifar), 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	
@@ -102,16 +103,16 @@ def main():
 	axs[1,0].set_title("Train Accuracy")
 	axs[1,0].legend()
 
-	print(res_1['standard_valid_accuracy'][-5:])
-	print(res_2['reweight_valid_accuracy'][-5:])
+	print("standard_valid_accuracy: ", res_1['standard_valid_accuracy'][-5:])
+	print("reweight_valid_accuracy: ", res_2['reweight_valid_accuracy'][-5:])
 	axs[1,1].plot(x, res_1['standard_valid_accuracy'], '--', color='blue', label='Standard')
 	axs[1,1].plot(x, res_2['reweight_valid_accuracy'], '--', color='red', label='Reweighted')
 	axs[1,1].axvline(x=res_2['burn_in'], linestyle='--', color='black')
 	axs[1,1].set_title("Validation Accuracy")
 	axs[1,1].legend()
 
-	print(res_1['standard_test_accuracy'][-5:])
-	print(res_2['reweight_test_accuracy'][-5:])
+	print("standard_test_accuracy:", res_1['standard_test_accuracy'][-5:])
+	print("reweight_valid_accuracy:", res_2['reweight_test_accuracy'][-5:])
 	axs[1,2].plot(x, res_1['standard_test_accuracy'], '--', color='blue', label='Standard')
 	axs[1,2].plot(x, res_2['reweight_test_accuracy'], '--', color='red', label='Reweighted')
 	axs[1,2].axvline(x=res_2['burn_in'], linestyle='--', color='black')
@@ -120,7 +121,7 @@ def main():
 	
 	plt.savefig('figures/loss_accuracy_{}.pdf'.format(res_1['timestamp']), format='pdf', dpi=1000)
 
-	with open('cifar_experiments/weights/cifar10_wideresnet_baseline_reweight_{}.data'.format(res_2['timestamp']), 'r+') as f:
+	with open('cifar_experiments/weights/cifar{}_wideresnet_baseline_reweight_{}.data'.format(args.cifar, res_2['timestamp']), 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
 	

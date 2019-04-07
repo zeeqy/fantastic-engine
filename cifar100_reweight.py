@@ -132,7 +132,7 @@ def main():
 	if torch.cuda.device_count() > 1:
 		model_reweight = nn.DataParallel(model_reweight)
 	model_reweight.to(device)
-	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=5e-4)
 
 	reweight_train_loss = []
 	reweight_train_accuracy = []

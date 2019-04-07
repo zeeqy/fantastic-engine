@@ -131,7 +131,7 @@ def main():
 	if torch.cuda.device_count() > 1:
 		model_standard = nn.DataParallel(model_standard)
 	model_standard.to(device)
-	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=5e-4)
 
 	standard_train_loss = []
 	standard_train_accuracy = []
