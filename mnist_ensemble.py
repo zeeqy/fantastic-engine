@@ -6,19 +6,27 @@ from torchvision import datasets, transforms
 import argparse
 import numpy as np
 import json, time
+import copy
 
 from networks import *
 
 from trajectoryPlugin.plugin import API
 
 
-def train_fn(model, device, optimizer, api):
+def get_lr(optimizer):
+	for param_group in optimizer.param_groups:
+		return param_group['lr']
+
+def train_fn(model, device, optimizer, api, reweight=False):
 	model.train()
 	for batch_idx, (data, target, weight) in enumerate(api.train_loader):
 		data, target, weight = data.to(device), target.to(device), weight.to(device)
 		optimizer.zero_grad()
 		output = model(data)
-		loss = api.loss_func(output, target, weight, 'mean')
+		if reweight:
+			loss = api.loss_func(output, target, weight, 'mean')
+		else:
+			loss = api.loss_func(output, target, None, 'mean')
 		loss.backward()
 		optimizer.step()
 
@@ -121,12 +129,6 @@ def main():
 	model_standard.to(device)
 	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum)
 
-	model_reweight = LeNet()
-	if torch.cuda.device_count() > 1:
-		model_reweight = nn.DataParallel(model_reweight)
-	model_reweight.to(device)
-	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
-	
 	standard_train_loss = []
 	standard_train_accuracy = []
 	standard_valid_loss = []
@@ -143,12 +145,44 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
+	scheduler = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
 
-	for epoch in range(1, args.epochs + 1):
+	for epoch in range(1, args.burn_in + 1):
 
 		scheduler_standard.step()
-		train_fn(model_standard, device, optimizer_standard, api)
+		train_fn(model_standard, device, optimizer_standard, api, False)
+		api.createTrajectory(model_reweight)
+		
+		loss, accuracy = forward_fn(model_standard, device, api, 'train')
+		standard_train_loss.append(loss)
+		standard_train_accuracy.append(accuracy)
+		reweight_train_loss.append(loss)
+		reweight_train_accuracy.append(accuracy)
+		
+		loss, accuracy = forward_fn(model_standard, device, api, 'validation')
+		standard_valid_loss.append(loss)
+		standard_valid_accuracy.append(accuracy)
+		reweight_valid_loss.append(loss)
+		reweight_valid_accuracy.append(accuracy)
+
+		loss, accuracy = forward_fn(model_standard, device, api, 'test', test_loader)
+		standard_test_loss.append(loss)
+		standard_test_accuracy.append(accuracy)
+		reweight_valid_loss.append(loss)
+		reweight_valid_accuracy.append(accuracy)
+
+		api.generateTrainLoader()
+
+	model_reweight = copy.deepcopy(model_standard)
+	current_lr = get_lr(optimizer_standard)
+	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=current_lr, momentum=args.momentum)
+	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
+	epoch_reweight = []
+
+	for epoch in range(args.burn_in + 1, args.epochs + 1):
+
+		scheduler_standard.step()
+		train_fn(model_standard, device, optimizer_standard, api, False)
 		
 		loss, accuracy = forward_fn(model_standard, device, api, 'train')
 		standard_train_loss.append(loss)
@@ -162,17 +196,8 @@ def main():
 		standard_test_loss.append(loss)
 		standard_test_accuracy.append(accuracy)
 
-		api.generateTrainLoader()
-
-	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
-	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
-	epoch_reweight = []
-
-	for epoch in range(1, args.epochs + 1):
-
 		scheduler_reweight.step()
-		train_fn(model_reweight, device, optimizer_reweight, api)
+		train_fn(model_reweight, device, optimizer_reweight, api, True)
 		api.createTrajectory(model_reweight)
 		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
 			api.clusterTrajectory() 
