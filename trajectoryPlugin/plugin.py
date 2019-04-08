@@ -65,8 +65,9 @@ class API:
 		note: this api will handle dataset during training, see example.
 	"""
 	
-	def __init__(self, num_cluster=6, device='cpu', iprint=0):
+	def __init__(self, num_cluster=6, device='cpu', update_rate=0.1, iprint=0):
 		self.num_cluster = num_cluster
+		self.update_rate = update_rate
 		self.loss_func = WeightedCrossEntropyLoss()
 		self.device = device
 		self.logger = logging.getLogger(__name__)
@@ -178,7 +179,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_tensor[cidx] += 0.1 * sim_dict[cid]
+			self.weight_tensor[cidx] += self.update_rate * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:

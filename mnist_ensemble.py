@@ -85,6 +85,7 @@ def main():
 	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
 	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
+	parser.add_argument('--weight_update_rate', type=int, default=0.1, help='weight update rate (default: 0.1)')
 	parser.add_argument('--save_model', action='store_true', default=False, help='For Saving the current Model')
 	
 	args = parser.parse_args()
@@ -143,7 +144,7 @@ def main():
 	reweight_test_loss = []
 	reweight_test_accuracy = []
 
-	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
+	api = API(num_cluster=args.num_cluster, device=device, update_rate=args.weight_update_rate, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
 	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
 
@@ -168,14 +169,21 @@ def main():
 		loss, accuracy = forward_fn(model_standard, device, api, 'test', test_loader)
 		standard_test_loss.append(loss)
 		standard_test_accuracy.append(accuracy)
-		reweight_valid_loss.append(loss)
-		reweight_valid_accuracy.append(accuracy)
+		reweight_test_loss.append(loss)
+		reweight_test_accuracy.append(accuracy)
 
 		api.generateTrainLoader()
 
-	model_reweight = copy.deepcopy(model_standard)
-	current_lr = get_lr(optimizer_standard)
-	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=current_lr, momentum=args.momentum)
+	torch.save({
+				'model_state_dict': model_standard.state_dict(),
+				'optimizer_state_dict': optimizer_standard.state_dict(),
+				}, 'mnist_cnn_ensemble_burn_in.pt')
+
+	model_reweight = LeNet()
+	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
+	checkpoint = torch.load('mnist_cnn_ensemble_burn_in.pt')
+	model_reweight.load_state_dict(checkpoint['model_state_dict'])
+	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
 	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
 	epoch_reweight = []
 
