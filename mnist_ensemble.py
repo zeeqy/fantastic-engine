@@ -145,7 +145,7 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
+	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
 
 	for epoch in range(1, args.burn_in + 1):
 
