@@ -85,7 +85,7 @@ def main():
 	parser.add_argument('--num_cluster', type=int, default=3, help='number of cluster (default: 3)')
 	parser.add_argument('--reweight_interval', type=int, default=1, help='number of epochs between reweighting')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
-	parser.add_argument('--weight_update_rate', type=int, default=0.1, help='weight update rate (default: 0.1)')
+	parser.add_argument('--weight_update_rate', type=float, default=0.1, help='weight update rate (default: 0.1)')
 	parser.add_argument('--save_model', action='store_true', default=False, help='For Saving the current Model')
 	
 	args = parser.parse_args()
