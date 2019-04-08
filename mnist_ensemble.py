@@ -151,7 +151,7 @@ def main():
 
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
-		api.createTrajectory(model_reweight)
+		api.createTrajectory(model_standard)
 		
 		loss, accuracy = forward_fn(model_standard, device, api, 'train')
 		standard_train_loss.append(loss)
