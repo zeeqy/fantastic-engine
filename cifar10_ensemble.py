@@ -11,13 +11,16 @@ from networks import *
 
 from trajectoryPlugin.plugin import API
 
-def train_fn(model, device, optimizer, api):
+def train_fn(model, device, optimizer, api, reweight=False):
 	model.train()
 	for batch_idx, (data, target, weight) in enumerate(api.train_loader):
 		data, target, weight = data.to(device), target.to(device), weight.to(device)
 		optimizer.zero_grad()
 		output = model(data)
-		loss = api.loss_func(output, target, weight, 'mean')
+		if reweight:
+			loss = api.loss_func(output, target, weight, 'mean')
+		else:
+			loss = api.loss_func(output, target, None, 'mean')
 		loss.backward()
 		optimizer.step()
 
@@ -181,8 +184,9 @@ def main():
 	model_reweight.load_state_dict(checkpoint['model_state_dict'])
 	model_reweight.to(device)
 	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
-	scheduler_reweight = torch.optim.lr_scheduler.MultiStepLR(optimizer_reweight, milestones=[60,120,160], gamma=0.2, last_epoch=args.burn_in)
-
+	scheduler_reweight = torch.optim.lr_scheduler.MultiStepLR(optimizer_reweight, milestones=[60,120,160], gamma=0.2, last_epoch=scheduler_standard.last_epoch)
+	epoch_reweight = []
+	
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
 		scheduler_standard.step()

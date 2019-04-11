@@ -12,11 +12,6 @@ from networks import *
 
 from trajectoryPlugin.plugin import API
 
-
-def get_lr(optimizer):
-	for param_group in optimizer.param_groups:
-		return param_group['lr']
-
 def train_fn(model, device, optimizer, api, reweight=False):
 	model.train()
 	for batch_idx, (data, target, weight) in enumerate(api.train_loader):
@@ -188,7 +183,7 @@ def main():
 	model_reweight.load_state_dict(checkpoint['model_state_dict'])
 	model_reweight.to(device)
 	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in)
+	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=scheduler_standard.last_epoch)
 	epoch_reweight = []
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
