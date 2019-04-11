@@ -188,7 +188,7 @@ def main():
 	model_reweight.load_state_dict(checkpoint['model_state_dict'])
 	model_reweight.to(device)
 	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95)
+	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in)
 	epoch_reweight = []
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):

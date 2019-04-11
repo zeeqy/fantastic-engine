@@ -81,7 +81,7 @@ def main():
 	axs[1,1].legend()
 
 	print("standard_test_accuracy:", res['standard_test_accuracy'][-5:])
-	print("reweight_valid_accuracy:", res['reweight_test_accuracy'][-5:])
+	print("reweight_test_accuracy:", res['reweight_test_accuracy'][-5:])
 	axs[1,2].plot(x, res['standard_test_accuracy'], '--', color='blue', label='Standard')
 	axs[1,2].plot(x, res['reweight_test_accuracy'], '--', color='red', label='Reweighted')
 	axs[1,2].axvline(x=res['burn_in'], linestyle='--', color='black')
