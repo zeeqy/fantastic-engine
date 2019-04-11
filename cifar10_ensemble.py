@@ -143,6 +143,13 @@ def main():
 	standard_test_loss = []
 	standard_test_accuracy = []
 
+	reweight_train_loss = []
+	reweight_train_accuracy = []
+	reweight_valid_loss = []
+	reweight_valid_accuracy = []
+	reweight_test_loss = []
+	reweight_test_accuracy = []
+
 	api = API(num_cluster=args.num_cluster, device=device, update_rate=args.weight_update_rate, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
 	scheduler_standard = torch.optim.lr_scheduler.MultiStepLR(optimizer_standard, milestones=[60,120,160], gamma=0.2)
