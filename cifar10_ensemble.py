@@ -83,7 +83,8 @@ def main():
 	parser.add_argument('--weight_update_rate', type=float, default=0.1, help='weight update rate (default: 0.1)')
 	parser.add_argument('--burn_in', type=int, default=5, help='number of burn-in epochs (default: 5)')
 	parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
-	
+	parser.add_argument('--save_model', action='store_true', default=False, help='For Saving the current Model')
+
 	args = parser.parse_args()
 
 	if args.seed != 0:
@@ -186,7 +187,7 @@ def main():
 	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
 	scheduler_reweight = torch.optim.lr_scheduler.MultiStepLR(optimizer_reweight, milestones=[60,120,160], gamma=0.2, last_epoch=scheduler_standard.last_epoch)
 	epoch_reweight = []
-	
+
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
 		scheduler_standard.step()
