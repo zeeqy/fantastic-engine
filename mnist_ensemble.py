@@ -105,7 +105,7 @@ def main():
 		batch_size=args.batch_size, shuffle=True)
 
 	valid_index = np.random.choice(range(len(mnistdata)), size=args.valid_size, replace=False).tolist()
-	train_index = list(range(len(mnistdata))) #np.delete(range(len(mnistdata)), valid_index).tolist()
+	train_index = np.delete(range(len(mnistdata)), valid_index).tolist()
 	trainset = torch.utils.data.dataset.Subset(mnistdata, train_index)
 	validset = torch.utils.data.dataset.Subset(mnistdata, valid_index)
 
