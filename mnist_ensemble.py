@@ -5,7 +5,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 import argparse
 import numpy as np
-import json, time
+import json, time, sys
 import copy
 
 from networks import *
@@ -105,7 +105,7 @@ def main():
 		batch_size=args.batch_size, shuffle=True)
 
 	valid_index = np.random.choice(range(len(mnistdata)), size=args.valid_size, replace=False).tolist()
-	train_index = np.delete(range(len(mnistdata)), valid_index).tolist()
+	train_index = list(range(len(mnistdata))) #np.delete(range(len(mnistdata)), valid_index).tolist()
 	trainset = torch.utils.data.dataset.Subset(mnistdata, train_index)
 	validset = torch.utils.data.dataset.Subset(mnistdata, valid_index)
 
@@ -169,6 +169,7 @@ def main():
 		reweight_test_accuracy.append(accuracy)
 
 		api.generateTrainLoader()
+		sys.stdout.flush()
 
 	torch.save({
 				'model_state_dict': model_standard.state_dict(),
@@ -224,6 +225,7 @@ def main():
 		reweight_test_accuracy.append(accuracy)
 
 		api.generateTrainLoader()
+		sys.stdout.flush()
 
 	if (args.save_model):
 		torch.save(model.state_dict(),"mnist_cnn_ensemble.pt")
