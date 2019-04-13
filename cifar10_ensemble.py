@@ -257,7 +257,7 @@ def main():
 	
 	res.update({'timestamp': timestamp})
 
-	with open('cifar_experiments/cifar10_wideresnet_ensumble_response.data', 'a+') as f:
+	with open('cifar_experiments/cifar10_wideresnet_ensemble_response.data', 'a+') as f:
 		f.write(json.dumps(res) + '\n')
 	f.close()
 
