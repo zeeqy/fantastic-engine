@@ -5,6 +5,7 @@ import torchvision
 import numpy as np
 from trajectoryPlugin.gmm import GaussianMixture
 from trajectoryPlugin.collate import default_collate as core_collate
+from sklearn import mixture
 from scipy import spatial
 import sys, logging
 
@@ -196,9 +197,10 @@ class API:
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
-		self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full',tol=1e-5, init_params='kmeans', verbose=0)
+		#self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
 		self.gmmCluster.fit(self.traject_matrix)
-		self.cluster_output = self.gmmCluster.predict(self.traject_matrix, prob=False)
+		self.cluster_output = self.gmmCluster.predict(self.traject_matrix)
 
 
 	def _specialRatio(self, cidx, special_index):
