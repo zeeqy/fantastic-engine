@@ -197,7 +197,7 @@ class API:
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
-		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full',tol=1e-5, init_params='kmeans', verbose=0)
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', verbose=0)
 		#self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
 		self.gmmCluster.fit(self.traject_matrix)
 		self.cluster_output = self.gmmCluster.predict(self.traject_matrix)
