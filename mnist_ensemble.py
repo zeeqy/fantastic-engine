@@ -187,6 +187,10 @@ def main():
 	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=scheduler_standard.last_epoch)
 	epoch_reweight = []
 
+	api.clusterTrajectory()
+	api.reweightData(model_reweight, 1e6, noise_idx)
+	epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
+
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
 		scheduler_standard.step()
