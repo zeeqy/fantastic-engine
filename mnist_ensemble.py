@@ -212,9 +212,9 @@ def main():
 		train_fn(model_reweight, device, optimizer_reweight, api, True)
 		api.createTrajectory(model_reweight)
 		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
-			api.clusterTrajectory() 
+			api.clusterTrajectory()
+			api.reweightData(model_reweight, 1e6, noise_idx)
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
-		api.reweightData(model_reweight, 1e6, noise_idx)
 
 		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
 		reweight_train_loss.append(loss)
