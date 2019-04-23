@@ -140,10 +140,10 @@ class API:
 			valid_output = validNet(data)
 			valid_loss = self.loss_func(valid_output, target, None, 'mean')
 			valid_loss.backward()
-		validNet.zero_grad()
 		for w in validNet.parameters():
 			if w.requires_grad:
 				valid_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
+		validNet.zero_grad()
 		return np.array(valid_grads)
 
 
