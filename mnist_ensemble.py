@@ -188,7 +188,7 @@ def main():
 	epoch_reweight = []
 
 	api.clusterTrajectory()
-	api.reweightData(model_reweight, 1e6, noise_idx)
+	api.reweightData(model_reweight, noise_idx)
 	epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
@@ -213,7 +213,7 @@ def main():
 		api.createTrajectory(model_reweight)
 		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
 			api.clusterTrajectory()
-			api.reweightData(model_reweight, 1e6, noise_idx)
+			api.reweightData(model_reweight, noise_idx)
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
 		
 

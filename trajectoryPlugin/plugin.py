@@ -140,27 +140,26 @@ class API:
 			valid_output = validNet(data)
 			valid_loss = self.loss_func(valid_output, target, None, 'mean')
 			valid_loss.backward()
+		validNet.zero_grad()
 		for w in validNet.parameters():
 			if w.requires_grad:
 				valid_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
 		return np.array(valid_grads)
 
 
-	def reweightData(self, validNet, num_sample, special_index=[]):
+	def reweightData(self, validNet, special_index=[]):
 		valid_grads = self._validGrad(validNet)
 		sim_dict = {}
+		validNet.eval() # eval mode, important!
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
 			size = len(cidx)
 			if size == 0:
 				continue
-			sample_size = min(int(size), num_sample)
-			sample_idx = [cidx[i] for i in np.random.choice(range(size), sample_size, replace=False).tolist()]
-			subset_sampler = torch.utils.data.sampler.SubsetRandomSampler(sample_idx)
-			subset_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=self.batch_size, sampler=subset_sampler, shuffle=False)
+			subset = torch.utils.data.dataset.Subset(self.train_dataset, cidx)
+			subset_loader = torch.utils.data.DataLoader(subset, batch_size=self.batch_size, shuffle=True)
 
-			validNet.eval() # eval mode, important!
 			validNet.zero_grad()
 			for step, (data, target) in enumerate(subset_loader):
 				data, target = data.to(self.device), target.to(self.device)
