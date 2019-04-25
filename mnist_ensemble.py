@@ -191,6 +191,11 @@ def main():
 	api.clusterTrajectory()
 	api.reweightData(model_reweight, noise_idx)
 	epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
+	mean_trajectory = {}
+	for cid in range(api.num_cluster):
+		cidx = (api.cluster_output==cid).nonzero()[0].tolist()
+		mean_trajectory.update({cid:np.mean(api.traject_matrix[cidx], axis=0).tolist()})
+	epoch_trajectory.append({'epoch':epoch, 'trajectory':mean_trajectory})
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
