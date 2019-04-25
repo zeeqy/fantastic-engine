@@ -179,7 +179,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_tensor[cidx] = self.update_rate * sim_dict[cid]
+			self.weight_tensor[cidx] += self.update_rate * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:

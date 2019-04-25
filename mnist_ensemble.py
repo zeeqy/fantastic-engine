@@ -186,6 +186,7 @@ def main():
 	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
 	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=scheduler_standard.last_epoch)
 	epoch_reweight = []
+	epoch_trajectory = []
 
 	api.clusterTrajectory()
 	api.reweightData(model_reweight, noise_idx)
@@ -215,6 +216,11 @@ def main():
 			api.clusterTrajectory()
 			api.reweightData(model_reweight, noise_idx)
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
+			mean_trajectory = {}
+			for cid in range(api.num_cluster):
+				cidx = (api.cluster_output==cid).nonzero()[0].tolist()
+				mean_trajectory.update({cid:np.mean(api.traject_matrix[cidx], axis=0).tolist()})
+			epoch_trajectory.append({'epoch':epoch, 'trajectory':mean_trajectory})
 		
 
 		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
@@ -261,6 +267,11 @@ def main():
 	with open('mnist_experiments/weights/mnist_cnn_baseline_reweight_{}.data'.format(timestamp), 'a+') as f:
 		for ws in epoch_reweight:
 			f.write(json.dumps(ws) + '\n')
+	f.close()
+
+	with open('mnist_experiments/trajectory/mnist_cnn_baseline_trajectory_{}.data'.format(timestamp), 'a+') as f:
+		for tr in epoch_trajectory:
+			f.write(json.dumps(tr) + '\n')
 	f.close()
 
 if __name__ == '__main__':
