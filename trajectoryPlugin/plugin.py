@@ -136,6 +136,7 @@ class API:
 		self.traject_bins = np.empty((self.train_dataset.__len__(),0))
 		for b in bins:
 			bin_stats = np.mean(b,axis=1) + np.std(b,axis=1)
+			print(bin_stats.shape, self.traject_bins.shape, self.traject_matrix.shape)
 			self.traject_bins = np.append(self.traject_bins, np.matrix(bin_stats).T,1)
 
 	def _validGrad(self, validNet):
