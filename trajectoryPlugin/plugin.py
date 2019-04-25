@@ -129,15 +129,14 @@ class API:
 				data = data.to(self.device)
 				output = torchnn(data).data.cpu().numpy().tolist()
 				prob_output[self.rand_idx[step]] = self._correctProb(output, target.data.cpu().numpy())
-			self.traject_matrix = np.append(self.traject_matrix, np.matrix(prob_output).T,1)
+			self.traject_matrix = np.append(self.traject_matrix, np.matrix(prob_output).T, 1)
 
 	def trajectoryBins(self):
-		bins = [self.traject_matrix[:,i:i+3] for i in range(0,self.traject_matrix.shape[1],1)]
-		self.traject_bins = np.empty((self.train_dataset.__len__(),0))
+		bins = [self.traject_matrix[:,i:i+3] for i in range(0, self.traject_matrix.shape[1], 1)]
+		self.traject_bins = np.empty((self.train_dataset.__len__(), 0))
 		for b in bins:
-			bin_stats = np.mean(b,axis=1) + np.std(b,axis=1)
-			print(bin_stats.shape, self.traject_bins.shape, self.traject_matrix.shape)
-			self.traject_bins = np.append(self.traject_bins, np.matrix(bin_stats).T,1)
+			bin_stats = np.mean(b, axis=1) + np.std(b, axis=1)
+			self.traject_bins = np.append(self.traject_bins, np.matrix(bin_stats), 1)
 
 	def _validGrad(self, validNet):
 		valid_grads = []
