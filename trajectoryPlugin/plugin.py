@@ -129,7 +129,14 @@ class API:
 				data = data.to(self.device)
 				output = torchnn(data).data.cpu().numpy().tolist()
 				prob_output[self.rand_idx[step]] = self._correctProb(output, target.data.cpu().numpy())
-			self.traject_matrix = np.append(self.traject_matrix,np.matrix(prob_output).T,1)
+			self.traject_matrix = np.append(self.traject_matrix, np.matrix(prob_output).T,1)
+
+	def trajectoryBins(self):
+		bins = [self.traject_matrix[:,i:i+3] for i in range(0,self.traject_matrix.shape[1],1)]
+		self.traject_bins = np.empty((self.train_dataset.__len__(),0))
+		for b in bins:
+			bin_stats = np.mean(b,axis=1) + np.std(b,axis=1)
+			self.traject_bins = np.append(self.traject_bins, np.matrix(bin_stats).T,1)
 
 	def _validGrad(self, validNet):
 		valid_grads = []
@@ -200,6 +207,12 @@ class API:
 		#self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
 		self.gmmCluster.fit(self.traject_matrix)
 		self.cluster_output = self.gmmCluster.predict(self.traject_matrix)
+
+	def clusterBins(self):
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', verbose=0)
+		#self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
+		self.gmmCluster.fit(self.traject_bins)
+		self.cluster_output = self.gmmCluster.predict(self.traject_bins)
 
 
 	def _specialRatio(self, cidx, special_index):
