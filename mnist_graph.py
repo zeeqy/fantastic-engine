@@ -123,7 +123,32 @@ def main():
 			plt.savefig('figures/weights_inspect_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 
 	except:
-		print("mnist_cnn_baseline_reweight_{}.data didn't found, only create loss graph.".format(res['timestamp']))
+		print("mnist_cnn_baseline_reweight_{}.data didn't found, skip weight graph.".format(res['timestamp']))
+
+	try:	
+		with open('mnist_experiments/trajectory/mnist_cnn_baseline_trajectory_{}.data'.format(res['timestamp']), 'r+') as f:
+			rec = f.read().split('\n')[:-1]
+		f.close()
+
+		fig, axs = plt.subplots(2,3, figsize=(20, 10))
+		i = 0
+		j = 0
+		for item in rec[:3] + rec[-3:]:
+			item_dict = json.loads(item)
+			x = range(1, item_dict['epoch']+1, 1)
+			for cid in range(args.num_cluster):
+				axs[i,j].plot(x, item_dict['trajectory']['{}'.format(cid)][0], '--')
+			axs[i,j].set_title("Average cluster trajectory at {} epoch".format(item_dict['epoch']))
+			if j < 3-1:
+				j += 1
+			else:
+				i += 1
+				j = 0
+		plt.tight_layout()
+		plt.savefig('figures/mean_trajectory_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
+	
+	except:
+		print("mnist_cnn_baseline_trajectory_{}.data didn't found, skip trajectory graph.".format(res['timestamp']))
 	
 if __name__ == '__main__':
 	main()
