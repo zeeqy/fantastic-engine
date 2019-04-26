@@ -134,9 +134,13 @@ class API:
 	def trajectoryBins(self):
 		bins = [self.traject_matrix[:,i:i+3] for i in range(0, self.traject_matrix.shape[1], 1)]
 		self.traject_bins = np.empty((self.train_dataset.__len__(), 0))
+		mean_traject = np.empty((self.train_dataset.__len__(), 0))
+		std_traject = np.empty((self.train_dataset.__len__(), 0))
 		for b in bins:
-			bin_stats = np.mean(b, axis=1) + np.std(b, axis=1)
-			self.traject_bins = np.append(self.traject_bins, np.matrix(bin_stats), 1)
+			mean_traject = np.append(mean_traject, np.matrix(np.mean(b, axis=1)), 1)
+			std_traject = np.append(std_traject, np.matrix(np.std(b, axis=1)), 1)
+		self.traject_bins = np.append(self.traject_bins, mean_traject, 1)
+		self.traject_bins = np.append(self.traject_bins, std_traject, 1)
 
 	def _validGrad(self, validNet):
 		valid_grads = []
