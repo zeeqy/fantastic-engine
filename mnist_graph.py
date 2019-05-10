@@ -45,6 +45,7 @@ def main():
 		res = res[0]
 	
 	fig, axs = plt.subplots(2,3, figsize=(20, 10))
+	st = fig.suptitle(json.dumps(args_dict), fontsize="x-large")
 	
 	x = range(1, res['epochs']+1, 1)
 	axs[0,0].plot(x, res['standard_train_loss'], '--', color='blue', label='Standard')
@@ -96,6 +97,7 @@ def main():
 		f.close()
 		
 		fig, axs = plt.subplots(2,3, figsize=(20, 10))
+		st = fig.suptitle(json.dumps(args_dict), fontsize="x-large")
 		i = 0
 		j = 0
 		for item in rec[:3] + rec[-3:]:
@@ -107,7 +109,6 @@ def main():
 			else:
 				i += 1
 				j = 0
-		plt.tight_layout()
 		plt.savefig('figures/weights_distribution_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 
 		weight_idx = input("index weight trajectory: ")
@@ -119,7 +120,6 @@ def main():
 			weight_epochs = [json.loads(item)['epoch'] for item in rec]
 			plt.plot(weight_epochs,weight_trajectory, 'x-')
 			plt.title("Weight changes for points {}".format(weight_idx))
-			plt.tight_layout()
 			plt.savefig('figures/weights_inspect_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
 
 	except:
@@ -131,22 +131,39 @@ def main():
 		f.close()
 
 		fig, axs = plt.subplots(2,3, figsize=(20, 10))
+		st = fig.suptitle(json.dumps(args_dict), fontsize="x-large")
 		i = 0
 		j = 0
 		for item in rec[:3] + rec[-3:]:
 			item_dict = json.loads(item)
 			x = range(1, item_dict['epoch']+1, 1)
 			for cid in range(args.num_cluster):
-				axs[i,j].plot(x, item_dict['trajectory']['{}'.format(cid)][0], '--')
+				axs[i,j].plot(x, item_dict['trajectory']['{}'.format(cid)][0][0:item_dict['epoch']], '--')
 			axs[i,j].set_title("Average cluster trajectory at {} epoch".format(item_dict['epoch']))
 			if j < 3-1:
 				j += 1
 			else:
 				i += 1
 				j = 0
-		plt.tight_layout()
 		plt.savefig('figures/mean_trajectory_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
-	
+
+		fig, axs = plt.subplots(2,3, figsize=(20, 10))
+		st = fig.suptitle(json.dumps(args_dict), fontsize="x-large")
+		i = 0
+		j = 0
+		for item in rec[:3] + rec[-3:]:
+			item_dict = json.loads(item)
+			x = range(1, item_dict['epoch']+1, 1)
+			for cid in range(args.num_cluster):
+				axs[i,j].plot(x, item_dict['trajectory']['{}'.format(cid)][0][item_dict['epoch']:], '--')
+			axs[i,j].set_title("Average cluster trajectory at {} epoch".format(item_dict['epoch']))
+			if j < 3-1:
+				j += 1
+			else:
+				i += 1
+				j = 0
+		plt.savefig('figures/std_trajectory_{}.pdf'.format(res['timestamp']), format='pdf', dpi=1000)
+
 	except:
 		print("mnist_cnn_baseline_trajectory_{}.data didn't found, skip trajectory graph.".format(res['timestamp']))
 	
