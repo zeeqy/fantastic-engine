@@ -191,6 +191,8 @@ def main():
 	api.trajectoryBins()
 	api.clusterBins()
 	api.reweightData(model_reweight, noise_idx)
+	api.generateTrainLoader()
+
 	epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
 	mean_trajectory = {}
 	for cid in range(api.num_cluster):
@@ -219,9 +221,12 @@ def main():
 		train_fn(model_reweight, device, optimizer_reweight, api, True)
 		api.createTrajectory(model_reweight)
 		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
+			
 			api.trajectoryBins()
 			api.clusterBins()
 			api.reweightData(model_reweight, noise_idx)
+			api.generateTrainLoader()
+			
 			epoch_reweight.append({'epoch':epoch, 'weight_tensor':api.weight_tensor.data.cpu().numpy().tolist()})
 			mean_trajectory = {}
 			for cid in range(api.num_cluster):
@@ -242,7 +247,6 @@ def main():
 		reweight_test_loss.append(loss)
 		reweight_test_accuracy.append(accuracy)
 
-		api.generateTrainLoader()
 		sys.stdout.flush()
 
 	if (args.save_model):
