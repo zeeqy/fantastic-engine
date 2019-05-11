@@ -66,9 +66,9 @@ class API:
 		note: this api will handle dataset during training, see example.
 	"""
 	
-	def __init__(self, num_cluster=6, device='cpu', update_rate=0.1, iprint=0):
+	def __init__(self, num_cluster=6, device='cpu', iprint=0):
 		self.num_cluster = num_cluster
-		self.update_rate = update_rate
+		#self.update_rate = update_rate
 		self.loss_func = WeightedCrossEntropyLoss()
 		self.device = device
 		self.logger = logging.getLogger(__name__)
@@ -101,7 +101,8 @@ class API:
 		self.batch_size = batch_size
 		self.train_dataset = trainset
 		self.valid_loader = Data.DataLoader(validset, batch_size=self.batch_size, shuffle=True)
-		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
+		self.weight_raw = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
+		self.weight_tensor = self._normalize(self.weight_raw)
 		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
 		self.generateTrainLoader()
 		
@@ -157,6 +158,9 @@ class API:
 		validNet.zero_grad()
 		return np.array(valid_grads)
 
+	def _normalize(self, tensor):
+		norm_fact = tensor.size()[0] / torch.sum(tensor)
+		return norm_fact * tensor
 
 	def reweightData(self, validNet, special_index=[]):
 		valid_grads = self._validGrad(validNet)
@@ -190,7 +194,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_tensor[cidx] += self.update_rate * sim_dict[cid]
+			self.weight_raw[cidx] = sim_dict[cid] #+= self.update_rate * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
@@ -200,9 +204,8 @@ class API:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
 
 		#normalize weight tensor
-		self.weight_tensor = self.weight_tensor.clamp(0.001)
-		norm_fact = self.weight_tensor.size()[0] / torch.sum(self.weight_tensor)
-		self.weight_tensor = norm_fact * self.weight_tensor
+		self.weight_raw = self.weight_raw.clamp(0.001)
+		self.weight_tensor = self._normalize(self.weight_raw)
 
 		validNet.zero_grad()
 
