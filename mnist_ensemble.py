@@ -87,11 +87,14 @@ def main():
 
 	timestamp = int(time.time())
 
-	if args.seed != 0:
-		torch.manual_seed(args.seed)
-		np.random.seed(args.seed)
-
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+	if args.seed != 0:
+		np.random.seed(args.seed)
+		torch.manual_seed(args.seed)
+		if device != 'cpu':
+			torch.cuda.manual_seed(args.seed)
+			torch.cuda.manual_seed_all(args.seed)
 
 	mnistdata = datasets.MNIST('../data', train=True, download=True,
 				 transform=transforms.Compose([
@@ -105,6 +108,9 @@ def main():
 						   transforms.Normalize((0.1307,), (0.3081,))
 					   ])),
 		batch_size=args.batch_size, shuffle=True)
+	
+	if args.seed != 0:
+		np.random.seed(args.seed)
 
 	valid_index = np.random.choice(range(len(mnistdata)), size=args.valid_size, replace=False).tolist()
 	train_index = np.delete(range(len(mnistdata)), valid_index).tolist()
@@ -115,6 +121,8 @@ def main():
 	if args.noise_level == 0:
 		noise_idx = []
 	else:
+		if args.seed != 0:
+			np.random.seed(args.seed)
 		noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)*args.noise_level), replace=False)
 		label = range(10)
 		for idx in noise_idx:
