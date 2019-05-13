@@ -194,7 +194,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_raw[cidx] = sim_dict[cid] #+= self.update_rate * sim_dict[cid]
+			self.weight_raw[cidx] += self.update_rate * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
