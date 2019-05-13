@@ -85,6 +85,8 @@ def main():
 	
 	args = parser.parse_args()
 
+	timestamp = int(time.time())
+
 	if args.seed != 0:
 		torch.manual_seed(args.seed)
 		np.random.seed(args.seed)
@@ -174,13 +176,13 @@ def main():
 	torch.save({
 				'model_state_dict': model_standard.state_dict(),
 				'optimizer_state_dict': optimizer_standard.state_dict(),
-				}, 'mnist_cnn_ensemble_burn_in.pt')
+				}, 'mnist_cnn_ensemble_burn_in_{}.pt'.format(timestamp))
 
 	model_reweight = ConvNet()
 	if torch.cuda.device_count() > 1:
 		model_reweight = nn.DataParallel(model_reweight)
 	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
-	checkpoint = torch.load('mnist_cnn_ensemble_burn_in.pt')
+	checkpoint = torch.load('mnist_cnn_ensemble_burn_in_{}.pt'.format(timestamp))
 	model_reweight.load_state_dict(checkpoint['model_state_dict'])
 	model_reweight.to(device)
 	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -250,7 +252,6 @@ def main():
 		torch.save(model.state_dict(),"mnist_cnn_ensemble.pt")
 
 	res = vars(args)
-	timestamp = int(time.time())
 
 	res.update({'standard_train_loss':standard_train_loss})
 	res.update({'standard_train_accuracy':standard_train_accuracy})
