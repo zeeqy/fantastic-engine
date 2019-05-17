@@ -65,6 +65,9 @@ class API:
 
 		note: this api will handle dataset during training, see example.
 	"""
+
+	traject_matrix = None  # type: ndarray
+	cluster_matrix = None  # type: ndarray
 	
 	def __init__(self, num_cluster=6, device='cpu', update_rate=0.1, iprint=0):
 		self.num_cluster = num_cluster
@@ -103,7 +106,8 @@ class API:
 		self.valid_loader = Data.DataLoader(validset, batch_size=self.batch_size, shuffle=True)
 		self.weight_raw = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
 		self.weight_tensor = self._normalize(self.weight_raw)
-		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
+		self.traject_matrix = np.empty((self.train_dataset.__len__(), 0))
+		self.cluster_matrix = np.empty((self.train_dataset.__len__(), 0))
 		self.generateTrainLoader()
 		
 	def log(self, msg, level):
@@ -120,6 +124,8 @@ class API:
 		return prob
 
 	def _softmax(self, x):
+		#e_x = np.exp(x - np.max(x))
+		#return e_x / e_x.sum(axis=0)
 		return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 	def createTrajectory(self, torchnn):
@@ -220,6 +226,7 @@ class API:
 		#self.gmmCluster = GaussianMixture(self.num_cluster, self.traject_matrix.shape[1], iprint=0)
 		self.gmmCluster.fit(self.traject_bins)
 		self.cluster_output = self.gmmCluster.predict(self.traject_bins)
+		self.cluster_matrix = np.append(self.cluster_matrix, np.matrix(self.cluster_output).T, 1)
 
 
 	def _specialRatio(self, cidx, special_index):
