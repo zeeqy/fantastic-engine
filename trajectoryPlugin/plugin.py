@@ -205,7 +205,7 @@ class API:
 
 		#normalize weight tensor
 		self.weight_raw = self.weight_raw.clamp(0.001)
-		self.weight_tensor = self._normalize(self.weight_raw)
+		self.weight_tensor = self.weight_raw #self._normalize(self.weight_raw)
 
 		validNet.zero_grad()
 
