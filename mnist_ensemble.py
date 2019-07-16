@@ -156,6 +156,8 @@ def main():
 
 	for epoch in range(1, args.burn_in + 1):
 
+		api.log('| - ' + 'at epoch {}'.format(epoch),2)
+
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
 		api.createTrajectory(model_standard)
@@ -211,6 +213,8 @@ def main():
 	epoch_trajectory.append({'epoch':epoch, 'trajectory':mean_trajectory})
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
+
+		api.log('| - ' + 'at epoch {}'.format(epoch),2)
 
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
