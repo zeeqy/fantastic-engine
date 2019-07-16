@@ -71,7 +71,6 @@ class API:
 		self.update_rate = update_rate
 		self.loss_func = WeightedCrossEntropyLoss()
 		self.device = device
-		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', verbose=0)
 		self.logger = logging.getLogger(__name__)
 		self.iprint = iprint #output level
 
@@ -201,10 +200,12 @@ class API:
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', verbose=0)
 		self.gmmCluster.fit(self.traject_matrix)
 		self.cluster_output = self.gmmCluster.predict(self.traject_matrix)
 
 	def clusterBins(self):
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', verbose=0)
 		self.gmmCluster.fit(self.traject_bins)
 		self.cluster_output = self.gmmCluster.predict(self.traject_bins)
 
