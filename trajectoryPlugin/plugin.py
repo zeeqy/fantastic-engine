@@ -7,6 +7,7 @@ from trajectoryPlugin.gmm import GaussianMixture
 from sklearn import mixture
 from scipy import spatial
 import sys, logging
+import copy
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -135,7 +136,6 @@ class API:
 
 	def _validGrad(self, validNet):
 		valid_grads = []
-		validNet.eval()
 		validNet.zero_grad()
 		for step, (data, target) in enumerate(self.valid_loader):
 			data, target = data.to(self.device), target.to(self.device)
@@ -145,25 +145,25 @@ class API:
 		for w in validNet.parameters():
 			if w.requires_grad:
 				valid_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
-		validNet.zero_grad()
 		return np.array(valid_grads)
 
 	def _normalize(self, tensor):
 		norm_fact = tensor.size()[0] / torch.sum(tensor)
 		return norm_fact * tensor
 
-	def reweightData(self, validNet, special_index=[]):
+	def reweightData(self, model, special_index=[]):
+		validNet = copy.deepcopy(model)
 		valid_grads = self._validGrad(validNet)
 		sim_dict = {}
-		validNet.eval() # eval mode, important!
+		#validNet.eval() # eval mode, important!
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
 			size = len(cidx)
 			if size == 0:
 				continue
-			subset = torch.utils.data.dataset.Subset(self.train_dataset, cidx)
-			subset_loader = torch.utils.data.DataLoader(subset, batch_size=self.batch_size, shuffle=True)
+			subset = Data.dataset.Subset(self.train_dataset, cidx)
+			subset_loader = Data.DataLoader(subset, batch_size=self.batch_size, shuffle=True)
 
 			validNet.zero_grad()
 			for step, (data, target) in enumerate(subset_loader):
