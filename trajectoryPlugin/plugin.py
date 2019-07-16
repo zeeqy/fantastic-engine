@@ -4,7 +4,6 @@ import torch.utils.data as Data
 import torchvision
 import numpy as np
 from trajectoryPlugin.gmm import GaussianMixture
-from trajectoryPlugin.collate import default_collate as core_collate
 from sklearn import mixture
 from scipy import spatial
 import sys, logging
@@ -50,14 +49,14 @@ class RandomBatchSampler(torch.utils.data.sampler.Sampler):
 		return (len(sum(self.shuffle,[])) + self.batch_size - 1)//self.batch_size
 
 class ConcatDataset(torch.utils.data.Dataset):
-	def __init__(self, *datasets):
-		self.datasets = datasets
+    def __init__(self, *datasets):
+        self.datasets = datasets
 
-	def __getitem__(self, i):
-		return tuple(d[i] for d in self.datasets)
+    def __getitem__(self, i):
+        return sum(tuple(d[i] for d in self.datasets), ())
 
-	def __len__(self):
-		return min(len(d) for d in self.datasets)
+    def __len__(self):
+        return min(len(d) for d in self.datasets)
 
 class API:
 	"""
@@ -74,14 +73,6 @@ class API:
 		self.logger = logging.getLogger(__name__)
 		self.iprint = iprint #output level
 
-	def _collateFn(self, batch):
-		transposed = zip(*batch)
-		res = []
-		for samples in transposed:
-			res += core_collate(samples)
-		return res
-
-
 	def _shuffleIndex(self):
 		rand_idx = torch.randperm(self.train_dataset.__len__()).tolist()
 		return [rand_idx[i:i+self.batch_size] for i in range(0, len(rand_idx), self.batch_size)]
@@ -95,14 +86,13 @@ class API:
 				self.train_dataset,
 				self.weightset
 			),
-			batch_sampler=self.batch_sampler, shuffle=False, collate_fn=self._collateFn)
+			batch_sampler=self.batch_sampler, shuffle=False)
 
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
 		self.train_dataset = trainset
 		self.valid_loader = Data.DataLoader(validset, batch_size=self.batch_size, shuffle=True)
-		self.weight_raw = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
-		self.weight_tensor = self._normalize(self.weight_raw)
+		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
 		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
 		self.generateTrainLoader()
 		
@@ -194,7 +184,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_raw[cidx] += self.update_rate * sim_dict[cid]
+			self.weight_tensor[cidx] += self.update_rate * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
@@ -204,8 +194,7 @@ class API:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
 
 		#normalize weight tensor
-		self.weight_raw = self.weight_raw.clamp(0.001)
-		self.weight_tensor = self.weight_raw #self._normalize(self.weight_raw)
+		self.weight_tensor = self._normalize(self.weight_tensor.clamp(0.001))
 
 		validNet.zero_grad()
 
