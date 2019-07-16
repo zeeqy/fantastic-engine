@@ -67,11 +67,11 @@ class API:
 	"""
 	
 	def __init__(self, num_cluster=6, device='cpu', update_rate=0.1, iprint=0):
-		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', warm_start=True, verbose=0)
 		self.num_cluster = num_cluster
 		self.update_rate = update_rate
 		self.loss_func = WeightedCrossEntropyLoss()
 		self.device = device
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', warm_start=True, verbose=0)
 		self.logger = logging.getLogger(__name__)
 		self.iprint = iprint #output level
 
