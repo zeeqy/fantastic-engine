@@ -135,6 +135,7 @@ class API:
 		self.traject_bins = np.append(self.traject_bins, std_traject, 1)
 
 	def _validGrad(self, validNet):
+		validNet.eval() # !important, fix network output
 		valid_grads = []
 		validNet.zero_grad()
 		for step, (data, target) in enumerate(self.valid_loader):
@@ -153,9 +154,9 @@ class API:
 
 	def reweightData(self, model, special_index=[]):
 		validNet = copy.deepcopy(model)
+		validNet.eval() # !important, fix network output
 		valid_grads = self._validGrad(validNet)
 		sim_dict = {}
-		#validNet.eval() # eval mode, important!
 		for cid in range(self.num_cluster):
 			subset_grads = []
 			cidx = (self.cluster_output==cid).nonzero()[0].tolist()
