@@ -183,19 +183,14 @@ def main():
 		api.generateTrainLoader()
 		sys.stdout.flush()
 
-	torch.save({
-				'model_state_dict': model_standard.state_dict(),
-				'optimizer_state_dict': optimizer_standard.state_dict(),
-				}, 'mnist_cnn_ensemble_burn_in_{}.pt'.format(timestamp))
-
 	model_reweight = ConvNet()
 	if torch.cuda.device_count() > 1:
 		model_reweight = nn.DataParallel(model_reweight)
-	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
-	checkpoint = torch.load('mnist_cnn_ensemble_burn_in_{}.pt'.format(timestamp))
-	model_reweight.load_state_dict(checkpoint['model_state_dict'])
+	model_reweight.load_state_dict(model_standard.state_dict())
 	model_reweight.to(device)
-	optimizer_reweight.load_state_dict(checkpoint['optimizer_state_dict'])
+
+	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
+	optimizer_reweight.load_state_dict(optimizer_standard.state_dict())
 	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=scheduler_standard.last_epoch)
 	epoch_reweight = []
 	epoch_trajectory = []

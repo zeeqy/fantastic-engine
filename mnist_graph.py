@@ -2,6 +2,8 @@ import argparse
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+from datetime import datetime
 
 def main():
 	parser = argparse.ArgumentParser(description='MNIST Graph')
@@ -39,8 +41,13 @@ def main():
 		return None
 	
 	elif len(res) > 1:
-		print("More than one trail found, select the most recent one!")
-		res = sorted(res, key=lambda k: k['timestamp'], reverse=True)[0]
+		sorted_res = sorted(res, key=lambda k: k['timestamp'], reverse=True)
+		index = 0
+		for data in sorted_res:
+			print(index, ' - ', datetime.fromtimestamp(data['timestamp']).strftime('%c'))
+			index += 1
+		tid = input("More than one trail found, select by id: ")
+		res = sorted_res[int(tid)]
 	else:
 		res = res[0]
 	
