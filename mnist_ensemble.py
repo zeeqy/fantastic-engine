@@ -130,7 +130,7 @@ def main():
 		    noise_label = [lab for lab in label if lab != true_label]
 		    trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 
-	model_standard = ConvNet()
+	model_standard = ConvNet1()
 	if torch.cuda.device_count() > 1:
 		model_standard = nn.DataParallel(model_standard)
 	model_standard.to(device)
@@ -183,7 +183,7 @@ def main():
 		api.generateTrainLoader()
 		sys.stdout.flush()
 
-	model_reweight = ConvNet()
+	model_reweight = ConvNet1()
 	if torch.cuda.device_count() > 1:
 		model_reweight = nn.DataParallel(model_reweight)
 	model_reweight.load_state_dict(model_standard.state_dict())

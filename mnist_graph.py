@@ -25,6 +25,8 @@ def main():
 	with open('mnist_experiments/mnist_cnn_baseline_reweight_response.data', 'r+') as f:
 		rec = f.read().split('\n')[:-1]
 	f.close()
+
+	print("Training data loaded!")
 	
 	res = []
 	for item in rec:
@@ -49,6 +51,7 @@ def main():
 		tid = input("More than one trail found, select by id: ")
 		res = sorted_res[int(tid)]
 	else:
+		print("Only one trail found, processing...")
 		res = res[0]
 	
 	fig, axs = plt.subplots(2,3, figsize=(20, 10))
@@ -109,7 +112,7 @@ def main():
 		j = 0
 		for item in rec[:3] + rec[-3:]:
 			item_dict = json.loads(item)
-			axs[i,j].hist(item_dict['weight_tensor'],bins='auto', range=(min(item_dict['weight_tensor'])-0.2,max(item_dict['weight_tensor'])+0.2))
+			axs[i,j].hist(item_dict['weight_tensor'], bins=10, range=(min(item_dict['weight_tensor'])-0.2,max(item_dict['weight_tensor'])+0.2))
 			axs[i,j].set_title("Weights Distirbution at {} epoch".format(item_dict['epoch']))
 			if j < 3-1:
 				j += 1
