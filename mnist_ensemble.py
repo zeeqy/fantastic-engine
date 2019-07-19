@@ -156,7 +156,7 @@ def main():
 
 	for epoch in range(1, args.burn_in + 1):
 
-		api.log('| - ' + 'at epoch {}, baseline lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr']),2)
+		api.log('| - ' + 'at epoch {}, standard lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr']),2)
 
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
@@ -191,7 +191,7 @@ def main():
 
 	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
 	optimizer_reweight.load_state_dict(optimizer_standard.state_dict())
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=scheduler_standard.last_epoch)
+	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=scheduler_standard.last_epoch - 1)
 	epoch_reweight = []
 	epoch_trajectory = []
 
@@ -209,7 +209,7 @@ def main():
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
-		api.log('| - ' + 'at epoch {}, baseline lr = {}, reweight lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr'], optimizer_reweight.param_groups[0]['lr']),2)
+		api.log('| - ' + 'at epoch {}, standard lr = {}, reweight lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr'], optimizer_reweight.param_groups[0]['lr']),2)
 
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
