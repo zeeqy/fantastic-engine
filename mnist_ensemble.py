@@ -156,7 +156,7 @@ def main():
 
 	for epoch in range(1, args.burn_in + 1):
 
-		api.log('| - ' + 'at epoch {}'.format(epoch),2)
+		api.log('| - ' + 'at epoch {}, baseline lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr']),2)
 
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
@@ -209,7 +209,7 @@ def main():
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
-		api.log('| - ' + 'at epoch {}'.format(epoch),2)
+		api.log('| - ' + 'at epoch {}, baseline lr = {}, reweight lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr'], optimizer_reweight.param_groups[0]['lr']),2)
 
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
