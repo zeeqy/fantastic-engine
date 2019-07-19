@@ -189,9 +189,9 @@ def main():
 	model_reweight.load_state_dict(model_standard.state_dict())
 	model_reweight.to(device)
 
-	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum)
+	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
 	optimizer_reweight.load_state_dict(optimizer_standard.state_dict())
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in)
+	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in-1)
 	epoch_reweight = []
 	epoch_trajectory = []
 
