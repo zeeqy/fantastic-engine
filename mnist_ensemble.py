@@ -126,9 +126,9 @@ def main():
 		noise_idx = np.random.choice(range(len(trainset)), size=int(len(trainset)*args.noise_level), replace=False)
 		label = range(10)
 		for idx in noise_idx:
-		    true_label = trainset.dataset.targets[train_index[idx]]
-		    noise_label = [lab for lab in label if lab != true_label]
-		    trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
+			true_label = trainset.dataset.targets[train_index[idx]]
+			noise_label = [lab for lab in label if lab != true_label]
+			trainset.dataset.targets[train_index[idx]] = int(np.random.choice(noise_label))
 
 	model_standard = ConvNet1()
 	if torch.cuda.device_count() > 1:
@@ -193,6 +193,11 @@ def main():
 	optimizer_reweight.load_state_dict(optimizer_standard.state_dict())
 	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in-1)
 	scheduler_reweight.step()
+
+	for p1, p2 in zip(model_standard.parameters(), model_reweight.parameters()):
+		if p1.data.ne(p2.data).sum() > 0:
+			api.log('| - ' + 'some parts of reweight model initialized incorrectly',2)
+
 	epoch_reweight = []
 	epoch_trajectory = []
 
