@@ -191,8 +191,8 @@ def main():
 
 	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
 	optimizer_reweight.load_state_dict(optimizer_standard.state_dict())
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in-1)
-	scheduler_reweight.step()
+	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in)
+	optimizer_reweight.param_groups[0]['lr'] = optimizer_standard.param_groups[0]['lr']
 
 	for p1, p2 in zip(model_standard.parameters(), model_reweight.parameters()):
 		if p1.data.ne(p2.data).sum() > 0:
