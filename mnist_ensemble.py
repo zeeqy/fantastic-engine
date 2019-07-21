@@ -62,7 +62,7 @@ def valid_fn(model, device, api):
 
 	return loss, accuracy
 
-def test_fn(model, device, api, test_loader)
+def test_fn(model, device, api, test_loader):
 	model.eval()
 	loss = 0
 	correct = 0
