@@ -25,45 +25,57 @@ def train_fn(model, device, optimizer, api, reweight=False):
 		loss.backward()
 		optimizer.step()
 
-def forward_fn(model, device, api, forward_type, test_loader=None):
+def train_loss_fn(model, device, api, reweight=False):
 	model.eval()
 	loss = 0
 	correct = 0
-	if forward_type == 'test':
-		with torch.no_grad():
-			for data, target in test_loader:
-				data, target = data.to(device), target.to(device)
-				output = model(data)
-				loss += api.loss_func(output, target, None, 'sum').item() # sum up batch loss
-				pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
-				correct += pred.eq(target.view_as(pred)).sum().item()
-		
-		loss /= len(test_loader.dataset)
-		accuracy = 100. * correct / len(test_loader.dataset)
-	
-	elif forward_type == 'train':
-		with torch.no_grad():
-			for batch_idx, (data, target, weight) in enumerate(api.train_loader):
-				data, target, weight = data.to(device), target.to(device), weight.to(device)
-				output = model(data)
+	with torch.no_grad():
+		for batch_idx, (data, target, weight) in enumerate(api.train_loader):
+			data, target, weight = data.to(device), target.to(device), weight.to(device)
+			output = model(data)
+			if reweight:
 				loss += api.loss_func(output, target, weight, 'sum').item() # sum up batch loss
-				pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
-				correct += pred.eq(target.view_as(pred)).sum().item()
+			else:
+				loss += api.loss_func(output, target, None, 'mean')
+			pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+			correct += pred.eq(target.view_as(pred)).sum().item()
+	
+	loss /= len(api.train_loader.dataset)
+	accuracy = 100. * correct / len(api.train_loader.dataset)
 
-		loss /= len(api.train_loader.dataset)
-		accuracy = 100. * correct / len(api.train_loader.dataset)
-				
-	elif forward_type == 'validation':
-		with torch.no_grad():
-			for batch_idx, (data, target) in enumerate(api.valid_loader): 
-				data, target = data.to(device), target.to(device)
-				output = model(data)
-				loss += api.loss_func(output, target, None, 'sum').item() # sum up batch loss
-				pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
-				correct += pred.eq(target.view_as(pred)).sum().item()
+	return loss, accuracy
 
-		loss /= len(api.valid_loader.dataset)
-		accuracy = 100. * correct / len(api.valid_loader.dataset)
+def valid_fn(model, device, api):
+	model.eval()
+	loss = 0
+	correct = 0
+	with torch.no_grad():
+		for batch_idx, (data, target) in enumerate(api.valid_loader): 
+			data, target = data.to(device), target.to(device)
+			output = model(data)
+			loss += api.loss_func(output, target, None, 'sum').item() # sum up batch loss
+			pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+			correct += pred.eq(target.view_as(pred)).sum().item()
+
+	loss /= len(api.valid_loader.dataset)
+	accuracy = 100. * correct / len(api.valid_loader.dataset)
+
+	return loss, accuracy
+
+def test_fn(model, device, api, test_loader)
+	model.eval()
+	loss = 0
+	correct = 0
+	with torch.no_grad():
+		for data, target in test_loader:
+			data, target = data.to(device), target.to(device)
+			output = model(data)
+			loss += api.loss_func(output, target, None, 'sum').item() # sum up batch loss
+			pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+			correct += pred.eq(target.view_as(pred)).sum().item()
+
+	loss /= len(test_loader.dataset)
+	accuracy = 100. * correct / len(test_loader.dataset)
 
 	return loss, accuracy
 
@@ -162,19 +174,19 @@ def main():
 		train_fn(model_standard, device, optimizer_standard, api, False)
 		api.createTrajectory(model_standard)
 		
-		loss, accuracy = forward_fn(model_standard, device, api, 'train')
+		loss, accuracy = train_loss_fn(model_standard, device, api, False)
 		standard_train_loss.append(loss)
 		standard_train_accuracy.append(accuracy)
 		reweight_train_loss.append(loss)
 		reweight_train_accuracy.append(accuracy)
 		
-		loss, accuracy = forward_fn(model_standard, device, api, 'validation')
+		loss, accuracy = valid_fn(model_standard, device, api)
 		standard_valid_loss.append(loss)
 		standard_valid_accuracy.append(accuracy)
 		reweight_valid_loss.append(loss)
 		reweight_valid_accuracy.append(accuracy)
 
-		loss, accuracy = forward_fn(model_standard, device, api, 'test', test_loader)
+		loss, accuracy = test_fn(model_standard, device, api, test_loader)
 		standard_test_loss.append(loss)
 		standard_test_accuracy.append(accuracy)
 		reweight_test_loss.append(loss)
@@ -220,15 +232,15 @@ def main():
 		scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
 		
-		loss, accuracy = forward_fn(model_standard, device, api, 'train')
+		loss, accuracy = train_loss_fn(model_standard, device, api, False)
 		standard_train_loss.append(loss)
 		standard_train_accuracy.append(accuracy)
 		
-		loss, accuracy = forward_fn(model_standard, device, api, 'validation')
+		loss, accuracy = valid_fn(model_standard, device, api)
 		standard_valid_loss.append(loss)
 		standard_valid_accuracy.append(accuracy)
 
-		loss, accuracy = forward_fn(model_standard, device, api, 'test', test_loader)
+		loss, accuracy = test_fn(model_standard, device, api, test_loader)
 		standard_test_loss.append(loss)
 		standard_test_accuracy.append(accuracy)
 
@@ -236,15 +248,15 @@ def main():
 		train_fn(model_reweight, device, optimizer_reweight, api, True)
 		api.createTrajectory(model_reweight)
 
-		loss, accuracy = forward_fn(model_reweight, device, api, 'train')
+		loss, accuracy = train_loss_fn(model_reweight, device, api, True)
 		reweight_train_loss.append(loss)
 		reweight_train_accuracy.append(accuracy)
 		
-		loss, accuracy = forward_fn(model_reweight, device, api, 'validation')
+		loss, accuracy = valid_fn(model_reweight, device, api)
 		reweight_valid_loss.append(loss)
 		reweight_valid_accuracy.append(accuracy)
 
-		loss, accuracy = forward_fn(model_reweight, device, api, 'test', test_loader)
+		loss, accuracy = test_fn(model_reweight, device, api, test_loader)
 		reweight_test_loss.append(loss)
 		reweight_test_accuracy.append(accuracy)
 
