@@ -7,7 +7,6 @@ from trajectoryPlugin.gmm import GaussianMixture
 from sklearn import mixture
 from scipy import spatial
 import sys, logging
-import copy
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -82,19 +81,16 @@ class API:
 		self.rand_idx = self._shuffleIndex()
 		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
 		self.weightset = Data.TensorDataset(self.weight_tensor)
-		self.train_loader = Data.DataLoader(
-			ConcatDataset(
-				self.train_dataset,
-				self.weightset
-			),
-			batch_sampler=self.batch_sampler, shuffle=False)
+		self.train_dataset = ConcatDataset(self.trainset, self.weightset)
+		self.train_loader = Data.DataLoader(self.train_dataset, batch_sampler=self.batch_sampler, shuffle=False)
 
 	def dataLoader(self, trainset, validset, batch_size=100):
 		self.batch_size = batch_size
-		self.train_dataset = trainset
-		self.valid_loader = Data.DataLoader(validset, batch_size=self.batch_size, shuffle=True)
+		self.trainset = trainset
+		self.validset = validset
+		self.valid_loader = Data.DataLoader(self.validset, batch_size=self.batch_size, shuffle=True)
 		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
-		self.traject_matrix = np.empty((self.train_dataset.__len__(),0))
+		self.traject_matrix = np.empty((self.trainset.__len__(),0))
 		self.generateTrainLoader()
 		
 	def log(self, msg, level):
@@ -146,16 +142,16 @@ class API:
 		for w in validNet.parameters():
 			if w.requires_grad:
 				valid_grads.extend(list(w.grad.cpu().detach().numpy().flatten()))
+		validNet.zero_grad()
 		return np.array(valid_grads)
 
 	def _normalize(self, tensor):
 		norm_fact = tensor.size()[0] / torch.sum(tensor)
 		return norm_fact * tensor
 
-	def reweightData(self, model, special_index=[]):
-		validNet = copy.deepcopy(model)
-		validNet.eval() # !important, fix network output
+	def reweightData(self, validNet, special_index=[]):
 		valid_grads = self._validGrad(validNet)
+		validNet.eval() # !important, fix network output
 		sim_dict = {}
 		for cid in range(self.num_cluster):
 			subset_grads = []
@@ -167,7 +163,7 @@ class API:
 			subset_loader = Data.DataLoader(subset, batch_size=self.batch_size, shuffle=True)
 
 			validNet.zero_grad()
-			for step, (data, target) in enumerate(subset_loader):
+			for step, (data, target, weight) in enumerate(subset_loader):
 				data, target = data.to(self.device), target.to(self.device)
 				subset_output = validNet(data)
 				subset_loss = self.loss_func(subset_output, target, None, 'sum')
@@ -185,7 +181,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_tensor[cidx] += self.update_rate * sim_dict[cid]
+			self.weight_tensor[cidx] = sim_dict[cid] #+= self.update_rate * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
@@ -195,8 +191,8 @@ class API:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
 
 		#normalize weight tensor
-		self.weight_tensor = self._normalize(self.weight_tensor.clamp(0.001))
-
+		self.weight_tensor = self.weight_tensor.clamp(0.0001) #self._normalize(self.weight_tensor.clamp(0.001))
+		validNet.train()
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
