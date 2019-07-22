@@ -89,7 +89,7 @@ class API:
 		self.trainset = trainset
 		self.validset = validset
 		self.valid_loader = Data.DataLoader(self.validset, batch_size=self.batch_size, shuffle=True)
-		self.weight_tensor = torch.tensor(np.ones(self.train_dataset.__len__(), dtype=np.float32), requires_grad=False)
+		self.weight_tensor = torch.tensor(np.ones(self.trainset.__len__(), dtype=np.float32), requires_grad=False)
 		self.traject_matrix = np.empty((self.trainset.__len__(),0))
 		self.generateTrainLoader()
 		
