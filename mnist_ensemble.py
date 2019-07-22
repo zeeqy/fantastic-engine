@@ -36,7 +36,7 @@ def train_loss_fn(model, device, api, reweight=False):
 			if reweight:
 				loss += api.loss_func(output, target, weight, 'sum').item() # sum up batch loss
 			else:
-				loss += api.loss_func(output, target, None, 'mean')
+				loss += api.loss_func(output, target, None, 'sum').item()
 			pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
 			correct += pred.eq(target.view_as(pred)).sum().item()
 	
