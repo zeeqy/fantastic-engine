@@ -78,10 +78,10 @@ class API:
 		return [rand_idx[i:i+self.batch_size] for i in range(0, len(rand_idx), self.batch_size)]
 
 	def generateTrainLoader(self):
-		self.rand_idx = self._shuffleIndex()
-		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
 		self.weightset = Data.TensorDataset(self.weight_tensor)
 		self.train_dataset = ConcatDataset(self.trainset, self.weightset)
+		self.rand_idx = self._shuffleIndex()
+		self.batch_sampler = RandomBatchSampler(self.rand_idx, self.batch_size)
 		self.train_loader = Data.DataLoader(self.train_dataset, batch_sampler=self.batch_sampler, shuffle=False)
 
 	def dataLoader(self, trainset, validset, batch_size=100):
