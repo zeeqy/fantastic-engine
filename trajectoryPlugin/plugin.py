@@ -181,7 +181,7 @@ class API:
 			size = len(cidx)
 			if size == 0:
 				continue
-			self.weight_tensor[cidx] = sim_dict[cid] #+= self.update_rate * sim_dict[cid]
+			self.weight_tensor[cidx] += self.update_rate * sim_dict[cid]
 			
 			#print some insights about noisy data
 			if special_index != []:
@@ -191,7 +191,7 @@ class API:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
 
 		#normalize weight tensor
-		self.weight_tensor = self.weight_tensor.clamp(0.0001) #self._normalize(self.weight_tensor.clamp(0.001))
+		self.weight_tensor = self._normalize(self.weight_tensor.clamp(0.001))
 		validNet.train()
 		validNet.zero_grad()
 
