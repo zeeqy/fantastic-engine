@@ -14,6 +14,7 @@ from trajectoryPlugin.plugin import API
 
 def train_fn(model, device, optimizer, api, reweight=False):
 	model.train()
+	batch_valid = {'batch_loss':[], 'batch_accuracy':[]}
 	for batch_idx, (data, target, weight) in enumerate(api.train_loader):
 		data, target, weight = data.to(device), target.to(device), weight.to(device)
 		optimizer.zero_grad()
@@ -24,6 +25,10 @@ def train_fn(model, device, optimizer, api, reweight=False):
 			loss = api.loss_func(output, target, None, 'mean')
 		loss.backward()
 		optimizer.step()
+		loss, accuracy = valid_fn(model, device, api)
+		batch_valid['batch_loss'].append(loss)
+		batch_valid['batch_accuracy'].append(accuracy)
+	return batch_valid
 
 def train_loss_fn(model, device, api, reweight=False):
 	model.eval()
@@ -225,12 +230,16 @@ def main():
 		mean_trajectory.update({cid:np.mean(api.traject_bins[cidx], axis=0).tolist()})
 	epoch_trajectory.append({'epoch':epoch, 'trajectory':mean_trajectory})
 
+	standard_batch_valid = {}
+	reweight_batch_valid = {}
+
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
 		api.log('| - ' + 'at epoch {}, standard lr = {}, reweight lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr'], optimizer_reweight.param_groups[0]['lr']),2)
 
 		scheduler_standard.step()
-		train_fn(model_standard, device, optimizer_standard, api, False)
+		batch_valid = train_fn(model_standard, device, optimizer_standard, api, False)
+		standard_batch_valid.update({'epoch':epoch,'data':batch_valid})
 		
 		loss, accuracy = train_loss_fn(model_standard, device, api, False)
 		standard_train_loss.append(loss)
@@ -245,7 +254,8 @@ def main():
 		standard_test_accuracy.append(accuracy)
 
 		scheduler_reweight.step()
-		train_fn(model_reweight, device, optimizer_reweight, api, True)
+		batch_valid = train_fn(model_reweight, device, optimizer_reweight, api, True)
+		reweight_batch_valid.update({'epoch':epoch,'data':batch_valid})
 		api.createTrajectory(model_reweight)
 
 		loss, accuracy = train_loss_fn(model_reweight, device, api, True)
@@ -306,6 +316,11 @@ def main():
 	with open('mnist_experiments/trajectory/mnist_cnn_baseline_trajectory_{}.data'.format(timestamp), 'a+') as f:
 		for tr in epoch_trajectory:
 			f.write(json.dumps(tr) + '\n')
+	f.close()
+
+	with open('mnist_experiments/mnist_cnn_batch_valid_{}.data'.format(timestamp), 'a+') as f:
+		f.write(json.dumps(standard_batch_valid) + '\n')
+		f.write(json.dumps(reweight_batch_valid))
 	f.close()
 
 if __name__ == '__main__':

@@ -53,6 +53,8 @@ def main():
 	else:
 		print("Only one trail found, processing...")
 		res = res[0]
+
+	print("Processing data with timestamp {}".format(res['timestamp']))
 	
 	fig, axs = plt.subplots(2,3, figsize=(20, 10))
 	st = fig.suptitle(json.dumps(args_dict), fontsize="x-large")
