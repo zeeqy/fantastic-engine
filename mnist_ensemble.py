@@ -230,8 +230,8 @@ def main():
 		mean_trajectory.update({cid:np.mean(api.traject_bins[cidx], axis=0).tolist()})
 	epoch_trajectory.append({'epoch':epoch, 'trajectory':mean_trajectory})
 
-	standard_batch_valid = {}
-	reweight_batch_valid = {}
+	standard_batch_valid = []
+	reweight_batch_valid = []
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
@@ -239,7 +239,7 @@ def main():
 
 		scheduler_standard.step()
 		batch_valid = train_fn(model_standard, device, optimizer_standard, api, False)
-		standard_batch_valid.update({epoch:{'data':batch_valid}})
+		standard_batch_valid.append({'epoch':epoch,'data':batch_valid})
 		
 		loss, accuracy = train_loss_fn(model_standard, device, api, False)
 		standard_train_loss.append(loss)
@@ -255,7 +255,7 @@ def main():
 
 		scheduler_reweight.step()
 		batch_valid = train_fn(model_reweight, device, optimizer_reweight, api, True)
-		reweight_batch_valid.update({epoch:{'data':batch_valid}})
+		reweight_batch_valid.append({'epoch':epoch,'data':batch_valid})
 		api.createTrajectory(model_reweight)
 
 		loss, accuracy = train_loss_fn(model_reweight, device, api, True)
