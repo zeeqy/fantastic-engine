@@ -318,9 +318,14 @@ def main():
 			f.write(json.dumps(tr) + '\n')
 	f.close()
 
-	with open('mnist_experiments/mnist_cnn_batch_valid_{}.data'.format(timestamp), 'a+') as f:
-		f.write(json.dumps(standard_batch_valid) + '\n')
-		f.write(json.dumps(reweight_batch_valid))
+	with open('mnist_experiments/weights/mnist_cnn_baseline_batch_valid_{}.data'.format(timestamp), 'a+') as f:
+		for vad in standard_batch_valid:
+			f.write(json.dumps(vad) + '\n')
+	f.close()
+
+	with open('mnist_experiments/weights/mnist_cnn_reweight_batch_valid_{}.data'.format(timestamp), 'a+') as f:
+		for vad in reweight_batch_valid:
+			f.write(json.dumps(vad) + '\n')
 	f.close()
 
 if __name__ == '__main__':
