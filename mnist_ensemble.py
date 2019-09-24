@@ -151,7 +151,8 @@ def main():
 	if torch.cuda.device_count() > 1:
 		model_standard = nn.DataParallel(model_standard)
 	model_standard.to(device)
-	optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
+	#optimizer_standard = optim.SGD(model_standard.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
+	optimizer_standard = optim.Adam(model_standard.parameters(), lr=args.lr, weight_decay=5e-4)
 
 	standard_train_loss = []
 	standard_train_accuracy = []
@@ -169,13 +170,13 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, update_rate=args.weight_update_rate, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
+	#scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
 
 	for epoch in range(1, args.burn_in + 1):
 
 		api.log('| - ' + 'at epoch {}, standard lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr']),2)
 
-		scheduler_standard.step()
+		#scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
 		api.createTrajectory(model_standard)
 		
@@ -206,9 +207,10 @@ def main():
 	model_reweight.load_state_dict(model_standard.state_dict())
 	model_reweight.to(device)
 
-	optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
+	#optimizer_reweight = optim.SGD(model_reweight.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
+	optimizer_reweight = optim.Adam(model_reweight.parameters(), lr=args.lr, weight_decay=5e-4)
 	optimizer_reweight.load_state_dict(optimizer_standard.state_dict())
-	scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in)
+	#scheduler_reweight = torch.optim.lr_scheduler.StepLR(optimizer_reweight, step_size=1, gamma=0.95, last_epoch=args.burn_in)
 	optimizer_reweight.param_groups[0]['lr'] = optimizer_standard.param_groups[0]['lr']
 
 	for p1, p2 in zip(model_standard.parameters(), model_reweight.parameters()):
@@ -237,7 +239,7 @@ def main():
 
 		api.log('| - ' + 'at epoch {}, standard lr = {}, reweight lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr'], optimizer_reweight.param_groups[0]['lr']),2)
 
-		scheduler_standard.step()
+		#scheduler_standard.step()
 		batch_valid = train_fn(model_standard, device, optimizer_standard, api, False)
 		standard_batch_valid.append({'epoch':epoch,'data':batch_valid})
 		
@@ -253,7 +255,7 @@ def main():
 		standard_test_loss.append(loss)
 		standard_test_accuracy.append(accuracy)
 
-		scheduler_reweight.step()
+		#scheduler_reweight.step()
 		batch_valid = train_fn(model_reweight, device, optimizer_reweight, api, True)
 		reweight_batch_valid.append({'epoch':epoch,'data':batch_valid})
 		api.createTrajectory(model_reweight)

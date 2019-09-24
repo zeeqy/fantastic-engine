@@ -190,18 +190,17 @@ class API:
 			else:
 				self.log('| - ' + str({cid:cid, 'size': size, 'sim': sim_dict[cid]}),2)
 
-		#normalize weight tensor
-		self.weight_tensor = self._normalize(self.weight_tensor.clamp(0.001))
+		self.weight_tensor = self._normalize(self.weight_tensor.clamp(0.001)) #normalize weight tensor
 		validNet.train()
 		validNet.zero_grad()
 
 	def clusterTrajectory(self):
-		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', verbose=0)
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=800, tol=1e-5, init_params='kmeans', verbose=0)
 		self.gmmCluster.fit(self.traject_matrix)
 		self.cluster_output = self.gmmCluster.predict(self.traject_matrix)
 
 	def clusterBins(self):
-		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=500, tol=1e-5, init_params='kmeans', verbose=0)
+		self.gmmCluster = mixture.GaussianMixture(n_components=self.num_cluster, covariance_type='full', max_iter=800, tol=1e-5, init_params='kmeans', verbose=0)
 		self.gmmCluster.fit(self.traject_bins)
 		self.cluster_output = self.gmmCluster.predict(self.traject_bins)
 
