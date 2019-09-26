@@ -28,6 +28,7 @@ def train_fn(model, device, optimizer, api, reweight=False):
 		loss, accuracy = valid_fn(model, device, api)
 		batch_valid['batch_loss'].append(loss)
 		batch_valid['batch_accuracy'].append(accuracy)
+	optimizer.zero_grad()
 	return batch_valid
 
 def train_loss_fn(model, device, api, reweight=False):
@@ -170,13 +171,13 @@ def main():
 
 	api = API(num_cluster=args.num_cluster, device=device, update_rate=args.weight_update_rate, iprint=2)
 	api.dataLoader(trainset, validset, batch_size=args.batch_size)
-	scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
+	#scheduler_standard = torch.optim.lr_scheduler.StepLR(optimizer_standard, step_size=1, gamma=0.95)
 
 	for epoch in range(1, args.burn_in + 1):
 
 		api.log('| - ' + 'at epoch {}, standard lr = {}'.format(epoch, optimizer_standard.param_groups[0]['lr']),2)
 
-		scheduler_standard.step()
+		#scheduler_standard.step()
 		train_fn(model_standard, device, optimizer_standard, api, False)
 		api.createTrajectory(model_standard)
 		
@@ -199,8 +200,11 @@ def main():
 		reweight_test_accuracy.append(accuracy)
 
 		api.generateTrainLoader()
-		sys.stdout.flush()
 
+		sys.stdout.flush()
+	
+	model_standard.train()
+	optimizer_standard.zero_grad()
 	model_reweight = ConvNet1()
 	if torch.cuda.device_count() > 1:
 		model_reweight = nn.DataParallel(model_reweight)
@@ -234,6 +238,11 @@ def main():
 
 	standard_batch_valid = []
 	reweight_batch_valid = []
+
+	model_standard.train()
+	optimizer_standard.zero_grad()
+	model_reweight.train()
+	optimizer_reweight.zero_grad()
 
 	for epoch in range(args.burn_in + 1, args.epochs + 1):
 
@@ -273,6 +282,12 @@ def main():
 		reweight_test_accuracy.append(accuracy)
 
 		if epoch >= args.burn_in and (epoch - args.burn_in) % args.reweight_interval == 0:
+			
+			model_standard.train()
+			optimizer_standard.zero_grad()
+			model_reweight.train()
+			optimizer_reweight.zero_grad()
+
 			api.trajectoryBins()
 			api.clusterBins()
 			api.reweightData(model_reweight, noise_idx)
@@ -284,6 +299,11 @@ def main():
 			epoch_trajectory.append({'epoch':epoch, 'trajectory':mean_trajectory})
 		api.generateTrainLoader()
 		sys.stdout.flush()
+
+		model_standard.train()
+		optimizer_standard.zero_grad()
+		model_reweight.train()
+		optimizer_reweight.zero_grad()
 
 	if (args.save_model):
 		torch.save(model.state_dict(),"mnist_cnn_ensemble.pt")
